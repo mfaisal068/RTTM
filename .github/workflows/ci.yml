@@ -1,0 +1,15 @@
+﻿name: RTTM CI
+on:
+  push:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13", cache: "pip"}
+      - run: pip install -r requirements.txt
+      - run: python -c "from api.main import app; print('API OK')"
+      - run: python -c "from core.solver import MOCSolver; print('Solver OK')"
+      - run: python -c "from detection.leak_detector import LeakDetectionEngine; print('Detector OK')"
