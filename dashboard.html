@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RTTM Monitor — INTECH Process Automation</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f172a; --card: #1e293b; --border: #334155;
+    --text: #f1f5f9; --muted: #94a3b8; --accent: #3b82f6;
+    --green: #22c55e; --yellow: #eab308; --orange: #f97316; --red: #ef4444;
+    --font: 'Inter', system-ui, sans-serif; --mono: 'JetBrains Mono', monospace;
+  }
+  body { background: var(--bg); color: var(--text); font-family: var(--font);
+         min-height: 100vh; padding: 1.5rem; }
+  h1 { font-size: 20px; font-weight: 600; }
+  h2 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--muted); letter-spacing:.05em; text-transform:uppercase; }
+  .grid { display: grid; gap: 1rem; }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  @media(max-width:900px){ .grid-2,.grid-3{grid-template-columns:1fr;} }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; }
+  .badge { display:inline-block; padding:2px 10px; border-radius:6px; font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; }
+  .badge-ok      { background:#052e16; color:var(--green);  border:1px solid #166534; }
+  .badge-warn    { background:#422006; color:var(--orange); border:1px solid #9a3412; }
+  .badge-alarm   { background:#431407; color:var(--red);    border:1px solid #991b1b; }
+  .badge-off     { background:#1e293b; color:var(--muted);  border:1px solid var(--border); }
+  .dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .dot-green { background:var(--green); box-shadow:0 0 6px var(--green); }
+  .dot-red   { background:var(--red); }
+  .dot-grey  { background:var(--muted); }
+  /* Topbar */
+  .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.25rem; flex-wrap:wrap; gap:.75rem; }
+  .brand  { display:flex; align-items:center; gap:.75rem; }
+  .logo   { width:36px; height:36px; border-radius:8px; background:linear-gradient(135deg,#1d4ed8,#7c3aed); display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .controls { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+  button { cursor:pointer; border:1px solid var(--border); background:var(--card); color:var(--text); padding:6px 14px; border-radius:7px; font-size:13px; font-family:inherit; transition:background .15s; }
+  button:hover { background:#334155; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.primary:hover { background:#2563eb; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  input[type=number],input[type=text] { background:#0f172a; border:1px solid var(--border); color:var(--text); padding:5px 10px; border-radius:6px; font-size:13px; font-family:inherit; width:100%; }
+  label { font-size:12px; color:var(--muted); display:block; margin-bottom:4px; }
+  /* Status row */
+  .stat-row { display:flex; gap:1.5rem; flex-wrap:wrap; margin-bottom:1rem; }
+  .stat { display:flex; flex-direction:column; gap:2px; }
+  .stat-val { font-size:22px; font-weight:700; font-family:var(--mono); }
+  .stat-lbl { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; }
+  /* Pressure bar chart */
+  .bar-row { display:flex; align-items:center; gap:8px; margin-bottom:5px; font-size:12px; }
+  .bar-wrap { flex:1; background:#0f172a; border-radius:4px; height:16px; overflow:hidden; }
+  .bar-fill { height:100%; border-radius:4px; transition:width .4s ease, background .3s; }
+  .bar-lbl  { width:52px; color:var(--muted); font-family:var(--mono); }
+  .bar-val  { width:78px; text-align:right; font-family:var(--mono); }
+  /* Alarm log */
+  .alarm-item { padding:8px 12px; border-bottom:1px solid var(--border); font-size:12px; display:flex; gap:10px; align-items:flex-start; }
+  .alarm-item:last-child { border-bottom:none; }
+  .alarm-scroll { max-height:200px; overflow-y:auto; }
+  .alarm-scroll::-webkit-scrollbar{width:4px;}
+  .alarm-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+  /* Pressure profile SVG */
+  #profile-svg { width:100%; }
+  /* Leak indicator */
+  .leak-box { padding:14px 18px; border-radius:10px; text-align:center; }
+  .leak-box .big { font-size:32px; font-weight:800; margin-bottom:4px; }
+  .leak-box .sub { font-size:13px; }
+  /* Flow inputs */
+  .flow-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.75rem; align-items:end; }
+  @media(max-width:600px){.flow-grid{grid-template-columns:1fr 1fr;}}
+  /* Progress */
+  #init-overlay { position:fixed; inset:0; background:rgba(15,23,42,.92); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100; gap:1rem; }
+  #init-overlay.hidden { display:none; }
+  .spinner { width:40px; height:40px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg);} }
+  .log-line { font-family:var(--mono); font-size:12px; color:var(--green); max-width:420px; text-align:center; }
+  /* Connection URL input */
+  .url-row { display:flex; gap:.5rem; align-items:center; }
+  .url-row input { flex:1; }
+</style>
+</head>
+<body>
+
+<!-- Init overlay -->
+<div id="init-overlay">
+  <div class="spinner"></div>
+  <div id="init-log" class="log-line">Connecting to RTTM engine…</div>
+  <div style="margin-top:.5rem">
+    <div class="url-row" style="max-width:380px">
+      <input type="text" id="api-url-input" value="http://localhost:8000" placeholder="RTTM API URL" />
+      <button class="primary" onclick="startInit()">Connect</button>
+    </div>
+    <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:.5rem">
+      Run: <code style="color:var(--green)">bash start.sh</code> then click Connect
+    </p>
+  </div>
+</div>
+
+<!-- Main layout -->
+<div class="topbar">
+  <div class="brand">
+    <div class="logo">🔧</div>
+    <div>
+      <h1>RTTM Monitor</h1>
+      <p style="font-size:12px;color:var(--muted)">INTECH Process Automation — Pipeline Leak Detection</p>
+    </div>
+  </div>
+  <div class="controls">
+    <span class="dot dot-grey" id="conn-dot"></span>
+    <span id="conn-label" style="font-size:13px;color:var(--muted)">Disconnected</span>
+    <button id="btn-start" class="primary" onclick="startPolling()" disabled>▶ Start</button>
+    <button id="btn-stop" onclick="stopPolling()" disabled>■ Stop</button>
+    <button onclick="injectLeak()" id="btn-leak" title="Inject a simulated 2% leak for testing" disabled>💧 Simulate Leak</button>
+    <button onclick="clearLeak()" id="btn-clear" disabled>✕ Clear Leak</button>
+  </div>
+</div>
+
+<!-- Stat bar -->
+<div class="stat-row card" style="margin-bottom:1rem;flex-direction:row">
+  <div class="stat"><span class="stat-val" id="s-time">—</span><span class="stat-lbl">Sim time (s)</span></div>
+  <div class="stat"><span class="stat-val" id="s-step">—</span><span class="stat-lbl">MOC steps</span></div>
+  <div class="stat"><span class="stat-val" id="s-wave">—</span><span class="stat-lbl">Wave speed (m/s)</span></div>
+  <div class="stat"><span class="stat-val" id="s-qin">—</span><span class="stat-lbl">Inlet Q (L/s)</span></div>
+  <div class="stat"><span class="stat-val" id="s-qout">—</span><span class="stat-lbl">Outlet Q (L/s)</span></div>
+  <div class="stat"><span class="stat-val" id="s-imb">—</span><span class="stat-lbl">Imbalance (L/s)</span></div>
+</div>
+
+<div class="grid grid-2" style="margin-bottom:1rem">
+
+  <!-- Pressure profile -->
+  <div class="card">
+    <h2>Pressure Profile — MOC Nodes</h2>
+    <div id="bars"></div>
+  </div>
+
+  <!-- Leak detection -->
+  <div class="card" style="display:flex;flex-direction:column;gap:1rem">
+    <h2>Leak Detection Status</h2>
+    <div id="leak-box" class="leak-box" style="background:#052e16;border:1px solid #166534">
+      <div class="big" style="color:var(--green)" id="ld-status">NO LEAK</div>
+      <div class="sub" id="ld-detail" style="color:var(--muted)">Both methods nominal</div>
+    </div>
+    <div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Detection Methods</div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <span class="badge badge-ok" id="badge-vb">Volume Balance ✓</span>
+        <span class="badge badge-ok" id="badge-pd">Pressure Dev ✓</span>
+      </div>
+    </div>
+    <div id="loc-row" style="display:none;font-size:13px;padding:8px 12px;background:#1c0a00;border:1px solid #9a3412;border-radius:8px">
+      📍 Estimated leak location: <strong id="loc-km">—</strong> km from inlet
+    </div>
+  </div>
+</div>
+
+<!-- Flow inputs + alarm log -->
+<div class="grid grid-2">
+
+  <div class="card">
+    <h2>SCADA Input Override</h2>
+    <div class="flow-grid">
+      <div>
+        <label>Inlet flow (L/s)</label>
+        <input type="number" id="q-in" value="150" step="1" />
+      </div>
+      <div>
+        <label>Outlet flow (L/s)</label>
+        <input type="number" id="q-out" value="150" step="1" />
+      </div>
+      <div>
+        <label>Inlet pressure (bar)</label>
+        <input type="number" id="p-in" value="50" step="0.5" />
+      </div>
+    </div>
+    <div style="margin-top:.75rem;font-size:12px;color:var(--muted)">
+      Imbalance threshold (3σ): <strong style="color:var(--text)">0.64 L/s</strong> &nbsp;|&nbsp;
+      Pressure alarm: <strong style="color:var(--text)">15 kPa</strong>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Alarm Log</h2>
+    <div class="alarm-scroll" id="alarm-log">
+      <div style="color:var(--muted);font-size:13px;padding:8px">No alarms yet</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Config ───────────────────────────────────────────────────────────────────
+let API = 'http://localhost:8000';
+
+const PIPE = {
+  length_m: 50000, diameter_m: 0.3048, wall_thickness_m: 0.008,
+  fluid_type: 'liquid', density_kg_m3: 850, viscosity_pa_s: 0.01,
+  bulk_modulus_pa: 1.7e9, young_modulus_pa: 200e9, n_reaches: 20,
+  nominal_flow_m3s: 0.15, sigma_flow_m3s: 0.0003, sigma_pressure_pa: 5000
+};
+const INIT = { inlet_pressure_pa: 5e6, inlet_flow_m3s: 0.15 };
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let pollTimer = null;
+let alarmCount = 0;
+let leakNode = null;
+let waveSpeed = '—';
+let simState = null;
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+async function startInit() {
+  API = document.getElementById('api-url-input').value.trim().replace(/\/$/,'');
+  log('Checking health…');
+  try {
+    const h = await api('GET', '/health');
+    log('Health OK — configuring pipeline…');
+    const cfg = await api('POST', '/pipeline/configure', PIPE);
+    waveSpeed = cfg.wave_speed_m_s;
+    document.getElementById('s-wave').textContent = waveSpeed;
+    log(`Wave speed ${waveSpeed} m/s · ${cfg.n_nodes} nodes · Δt ${cfg.dt_s}s`);
+    await api('POST', '/simulation/initialize', INIT);
+    log('✓ Steady state initialised');
+    // connected
+    setConnected(true);
+    document.getElementById('init-overlay').classList.add('hidden');
+  } catch(e) {
+    log('❌ ' + e.message + ' — is the API running?');
+  }
+}
+
+function log(msg) { document.getElementById('init-log').textContent = msg; }
+
+function setConnected(ok) {
+  document.getElementById('conn-dot').className = 'dot ' + (ok ? 'dot-green' : 'dot-red');
+  document.getElementById('conn-label').textContent = ok ? 'Connected' : 'Disconnected';
+  document.getElementById('conn-label').style.color = ok ? 'var(--green)' : 'var(--red)';
+  ['btn-start','btn-leak','btn-clear'].forEach(id => document.getElementById(id).disabled = !ok);
+}
+
+// ─── Polling ──────────────────────────────────────────────────────────────────
+function startPolling() {
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-stop').disabled = false;
+  pollTimer = setInterval(tick, 1000);
+  tick();
+}
+
+function stopPolling() {
+  clearInterval(pollTimer);
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-stop').disabled = true;
+}
+
+async function tick() {
+  const qIn  = Number(document.getElementById('q-in').value)  / 1000;
+  const qOut = Number(document.getElementById('q-out').value) / 1000;
+  const pIn  = Number(document.getElementById('p-in').value)  * 1e5;
+
+  try {
+    // Advance MOC
+    const body = { inlet_pressure_pa: pIn, outlet_pressure_pa: pIn * 0.60 };
+    if (leakNode !== null) { body.simulated_leak_node = leakNode; body.simulated_leak_flow_m3s = 0.003; }
+    simState = await api('POST', '/simulation/step', body);
+
+    // Update stats
+    document.getElementById('s-time').textContent  = simState.time.toFixed(1);
+    document.getElementById('s-step').textContent  = simState.step;
+    document.getElementById('s-qin').textContent   = (qIn*1000).toFixed(1);
+    document.getElementById('s-qout').textContent  = (qOut*1000).toFixed(1);
+    const imb = (qIn - qOut)*1000;
+    const imbEl = document.getElementById('s-imb');
+    imbEl.textContent = imb.toFixed(2);
+    imbEl.style.color = Math.abs(imb) > 0.64 ? 'var(--red)' : 'var(--green)';
+
+    // Pressure bars
+    renderBars(simState);
+
+    // Leak detection
+    const pArr = (simState.pressures_pa || simState.pressure_kPa.map(p=>p*1000));
+    const nodes = [0,2,4,6,8,10,12,14,16,18,20].filter(i=>i<pArr.length);
+    const analysis = await api('POST', '/leakdetection/analyze', {
+      measured_inlet_flow_m3s:  qIn  + randN(0, 0.0003),
+      measured_outlet_flow_m3s: qOut + randN(0, 0.0003),
+      measured_pressures_pa: nodes.map(i => {
+        let p = pArr[i] + randN(0, 3000);
+        if (leakNode !== null && i === leakNode) p -= 90000;
+        return p;
+      }),
+      sensor_node_indices: nodes,
+    });
+
+    renderDetection(analysis);
+  } catch(e) {
+    console.warn('Tick error:', e.message);
+  }
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function renderBars(s) {
+  const P = s.pressures_pa || s.pressure_kPa.map(p=>p*1000);
+  const maxP = Math.max(...P);
+  const el = document.getElementById('bars');
+  el.innerHTML = P.map((p, i) => {
+    const pct = Math.max(0, Math.min(100, p / maxP * 100));
+    const isLeak = leakNode !== null && i === leakNode;
+    const color = isLeak ? 'var(--red)' : p < maxP*0.3 ? 'var(--orange)' : 'var(--accent)';
+    return `<div class="bar-row">
+      <span class="bar-lbl">N${String(i).padStart(2,'0')}</span>
+      <div class="bar-wrap"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <span class="bar-val">${(p/1e5).toFixed(2)} bar</span>
+    </div>`;
+  }).join('');
+}
+
+function renderDetection(a) {
+  const box   = document.getElementById('leak-box');
+  const stat  = document.getElementById('ld-status');
+  const det   = document.getElementById('ld-detail');
+  const bvb   = document.getElementById('badge-vb');
+  const bpd   = document.getElementById('badge-pd');
+  const locR  = document.getElementById('loc-row');
+
+  const sev = a.highest_severity;
+
+  if (!a.any_alarm) {
+    box.style.background  = '#052e16'; box.style.borderColor = '#166534';
+    stat.style.color = 'var(--green)'; stat.textContent = 'NO LEAK';
+    det.textContent = 'Both methods nominal';
+    bvb.className = bpd.className = 'badge badge-ok';
+    bvb.textContent = 'Volume Balance ✓';
+    bpd.textContent = 'Pressure Dev ✓';
+    locR.style.display = 'none';
+  } else {
+    const col = sev==='critical'?'var(--red)':sev==='alarm'?'var(--orange)':'var(--yellow)';
+    const bg  = sev==='critical'?'#1c0505':sev==='alarm'?'#1c0a00':'#1c1500';
+    const bc  = sev==='critical'?'#991b1b':sev==='alarm'?'#9a3412':'#854d0e';
+    box.style.background = bg; box.style.borderColor = bc;
+    stat.style.color = col;
+    stat.textContent = sev.toUpperCase() + (sev!=='warning'?' ⚠':'');
+    det.textContent  = `Confidence ${(a.fused_confidence*100).toFixed(0)}% · ${a.alarms.length} method(s) triggered`;
+
+    const vbHit = a.alarms.some(x=>x.method==='volume_balance');
+    const pdHit = a.alarms.some(x=>x.method==='pressure_deviation');
+    bvb.className = 'badge ' + (vbHit ? 'badge-alarm' : 'badge-ok');
+    bvb.textContent = 'Volume Balance ' + (vbHit ? '⚠' : '✓');
+    bpd.className = 'badge ' + (pdHit ? 'badge-alarm' : 'badge-ok');
+    bpd.textContent = 'Pressure Dev ' + (pdHit ? '⚠' : '✓');
+
+    const loc = a.alarms.find(x=>x.location_m);
+    if (loc) {
+      locR.style.display = 'block';
+      document.getElementById('loc-km').textContent = (loc.location_m/1000).toFixed(2);
+    }
+
+    // Log alarms
+    a.alarms.forEach(alarm => addAlarm(alarm));
+  }
+}
+
+function addAlarm(alarm) {
+  alarmCount++;
+  const col = alarm.severity==='critical'?'var(--red)':alarm.severity==='alarm'?'var(--orange)':'var(--yellow)';
+  const div = document.createElement('div');
+  div.className = 'alarm-item';
+  div.innerHTML = `
+    <span class="badge badge-${alarm.severity==='warning'?'warn':'alarm'}" style="flex-shrink:0">${alarm.severity}</span>
+    <div>
+      <div style="color:var(--muted);font-size:11px">t=${alarm.timestamp.toFixed(0)}s · ${alarm.method}</div>
+      <div style="color:var(--text)">${alarm.message}</div>
+    </div>`;
+  const log = document.getElementById('alarm-log');
+  if (log.firstChild?.style?.color === 'var(--muted)') log.innerHTML = '';
+  log.prepend(div);
+}
+
+// ─── Leak simulation ──────────────────────────────────────────────────────────
+function injectLeak() {
+  leakNode = 12;  // ~30 km into pipe
+  document.getElementById('q-out').value = (parseFloat(document.getElementById('q-out').value) - 2).toFixed(1);
+  document.getElementById('btn-leak').disabled = true;
+  document.getElementById('btn-clear').disabled = false;
+  addAlarm({severity:'warning',timestamp:simState?.time||0,method:'operator',message:'⚗ Simulated 2% leak injected at node 12 (x ≈ 30 km)'});
+}
+
+function clearLeak() {
+  leakNode = null;
+  document.getElementById('q-out').value = document.getElementById('q-in').value;
+  document.getElementById('btn-leak').disabled = false;
+  document.getElementById('btn-clear').disabled = true;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = { method, headers: {'Content-Type':'application/json'} };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  if (!res.ok) {
+    const e = await res.json().catch(()=>({detail:res.statusText}));
+    throw new Error(e.detail || res.statusText);
+  }
+  return res.json();
+}
+
+function randN(mu, sigma) {
+  const u = 1 - Math.random();
+  const v = Math.random();
+  return mu + sigma * Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+}
+</script>
+</body>
+</html>

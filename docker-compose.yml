@@ -1,0 +1,101 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RTTM + LDS Integrated Stack
+#
+# Services:
+#   rttm-engine  — FastAPI MOC solver + leak detection (this repo)
+#   lds-app      — Your existing LDS web application
+#   redis        — Shared pub/sub for alarm distribution
+#   nginx        — Reverse proxy (single entry point)
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── RTTM Engine ─────────────────────────────────────────────────────────────
+  rttm-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rttm-engine
+    restart: unless-stopped
+    environment:
+      - RTTM_HOST=0.0.0.0
+      - RTTM_PORT=8000
+      - RTTM_LOG_LEVEL=${RTTM_LOG_LEVEL:-info}
+      - REDIS_URL=redis://redis:6379/0
+    ports:
+      - "${RTTM_PORT:-8000}:8000"
+    volumes:
+      - rttm_logs:/app/logs
+    networks:
+      - lds-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ── Your existing LDS web app ────────────────────────────────────────────────
+  lds-app:
+    image: ${LDS_APP_IMAGE:-your-lds-app:latest}   # replace with your image
+    container_name: lds-app
+    restart: unless-stopped
+    environment:
+      - RTTM_API_URL=http://rttm-engine:8000
+      - RTTM_WS_URL=ws://rttm-engine:8000/ws/stream
+      - REDIS_URL=redis://redis:6379/0
+      - LDS_DB_URL=${LDS_DB_URL}
+      - LDS_SECRET_KEY=${LDS_SECRET_KEY}
+    ports:
+      - "${LDS_PORT:-3000}:3000"
+    networks:
+      - lds-network
+    depends_on:
+      rttm-engine:
+        condition: service_healthy
+
+  # ── Redis (alarm pub/sub + state cache) ──────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: rttm-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - lds-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Nginx reverse proxy ───────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: rttm-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${SSL_CERT_PATH:-./ssl}:/etc/ssl/certs:ro
+    networks:
+      - lds-network
+    depends_on:
+      - rttm-engine
+      - lds-app
+
+networks:
+  lds-network:
+    driver: bridge
+
+volumes:
+  redis_data:
+  rttm_logs:
