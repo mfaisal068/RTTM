@@ -2,24 +2,28 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>RTTM Digital Twin v2.1 — INTECH</title>
+<title>RTTM Digital Twin v2.2 — INTECH</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#08101e;--card:#111827;--card2:#0d1626;--border:#1e2d45;--text:#e2e8f0;--muted:#64748b;
-  --accent:#3b82f6;--green:#22c55e;--yellow:#eab308;--orange:#f97316;--red:#ef4444;
-  --teal:#14b8a6;--purple:#a855f7;--pink:#ec4899;--cyan:#06b6d4;
-  --font:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;}
+:root{
+  --bg:#08101e;--card:#111827;--card2:#0d1626;--border:#1e2d45;
+  --text:#e2e8f0;--muted:#64748b;--input-bg:#0a1220;
+  --accent:#3b82f6;--green:#22c55e;--yellow:#eab308;
+  --orange:#f97316;--red:#ef4444;--teal:#14b8a6;--purple:#a855f7;--pink:#ec4899;
+  --chart-grid:#1e2d45;--chart-tick:#64748b;
+  --font:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;
+}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);overflow:hidden}
 h2{font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:7px}
 button{cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--text);
   padding:5px 11px;border-radius:6px;font-size:12px;font-family:inherit;transition:all .15s;white-space:nowrap}
-button:hover{background:#1e2d45}
+button:hover{background:var(--border)}
 button.primary{background:#1d4ed8;border-color:#3b82f6;color:#fff}
 button.primary:hover{background:#2563eb}
 button.danger{border-color:var(--red);color:var(--red)}
 button:disabled{opacity:.35;cursor:not-allowed}
-input,select{background:#0a1220;border:1px solid var(--border);color:var(--text);
+input,select{background:var(--input-bg);border:1px solid var(--border);color:var(--text);
   padding:5px 8px;border-radius:5px;font-size:12px;font-family:inherit;width:100%}
 input:focus,select:focus{outline:none;border-color:var(--accent)}
 input[type=range]{padding:0;height:4px;cursor:pointer;accent-color:var(--accent)}
@@ -27,58 +31,91 @@ input[type=range]{padding:0;height:4px;cursor:pointer;accent-color:var(--accent)
 .badge{display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 .dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
 .dot-g{background:var(--green);box-shadow:0 0 6px var(--green)}.dot-r{background:var(--red)}
+/* Tooltip */
+.tip{position:relative;display:inline-block}
+.tip:hover .tip-box{display:block}
+.tip-box{display:none;position:absolute;left:50%;bottom:120%;transform:translateX(-50%);
+  background:#1e2d45;border:1px solid var(--border);color:var(--text);
+  padding:6px 10px;border-radius:6px;font-size:11px;white-space:nowrap;z-index:100;
+  font-weight:400;text-transform:none;letter-spacing:0;min-width:220px;line-height:1.5}
+/* Layout */
 #app{display:flex;flex-direction:column;height:100vh}
 .topbar{display:flex;align-items:center;gap:8px;padding:7px 12px;
   background:var(--card);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
 .logo{width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#1e40af,#7c3aed);
   display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
-nav{display:flex;gap:2px;margin-left:auto}
+nav{display:flex;gap:2px}
 nav button{padding:4px 9px;font-size:11px;border-radius:5px}
 nav button.active{background:var(--accent);border-color:var(--accent);color:#fff}
-.ctrls{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
-.main{flex:1;overflow:hidden;position:relative}
-.tab{display:none;height:100%;overflow-y:auto;padding:9px 11px}
-.tab.active{display:block}
-.tab::-webkit-scrollbar{width:3px}.tab::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.ctrls{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-left:auto}
+.main{flex:1;overflow:hidden;min-height:0}
+.tab{display:none;height:100%;padding:9px 11px;overflow-y:auto}
+.tab.active{display:flex;flex-direction:column}
+.tab::-webkit-scrollbar{width:3px}
+.tab::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 /* Stats */
-.stats{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px}
+.stats{display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0;margin-bottom:8px}
 .stat{display:flex;flex-direction:column;gap:1px;padding:7px 10px;
   background:var(--card2);border:1px solid var(--border);border-radius:7px;min-width:74px}
 .sv{font-size:17px;font-weight:700;font-family:var(--mono);line-height:1.2}
 .sl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
 /* Twin */
-#twin-wrap{width:100%;height:230px;position:relative;overflow:hidden;
-  background:var(--card2);border:1px solid var(--border);border-radius:9px;margin-bottom:8px}
+#twin-wrap{width:100%;height:220px;flex-shrink:0;position:relative;overflow:hidden;
+  background:var(--card2);border:1px solid var(--border);border-radius:9px;margin-bottom:7px}
 #twin-svg{width:100%;height:100%}
 .twin-btns{position:absolute;top:7px;right:7px;display:flex;gap:3px;z-index:2}
 .twin-btns button{padding:3px 7px;font-size:10px}
 .twin-btns button.active{background:var(--accent);border-color:var(--accent);color:#fff}
 /* Bar chart */
 .bar-row{display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:10px}
-.bar-wrap{flex:1;background:#0a1220;border-radius:3px;height:13px;overflow:hidden}
+.bar-wrap{flex:1;background:var(--input-bg);border-radius:3px;height:13px;overflow:hidden}
 .bar-fill{height:100%;border-radius:3px;transition:width .3s ease}
 .bar-lbl{width:40px;color:var(--muted);font-family:var(--mono);font-size:9px}
-.bar-val{width:56px;text-align:right;font-family:var(--mono);font-size:9px}
+.bar-val{width:60px;text-align:right;font-family:var(--mono);font-size:9px}
 /* Leak box */
-.ld-box{padding:9px 12px;border-radius:7px;text-align:center;transition:all .3s;margin-bottom:7px}
+.ld-box{padding:9px 12px;border-radius:7px;text-align:center;transition:all .3s;margin-bottom:7px;border:1px solid}
 .ld-big{font-size:20px;font-weight:800;margin-bottom:2px}
 .ld-sub{font-size:10px}
-/* Alarm log */
-.alarm-scroll{max-height:140px;overflow-y:auto}
+/* Alarm */
+.alarm-scroll{max-height:130px;overflow-y:auto}
 .alarm-scroll::-webkit-scrollbar{width:3px}
 .alarm-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-.alarm-row{padding:4px 7px;border-bottom:1px solid #0d1626;font-size:10px;display:flex;gap:6px;align-items:flex-start}
-/* Charts */
-.chart-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:7px}
-@media(max-width:1000px){.chart-grid{grid-template-columns:1fr 1fr}}
-.cp{background:var(--card);border:1px solid var(--border);border-radius:7px;padding:9px}
-.ct{font-size:10px;font-weight:600;margin-bottom:5px;display:flex;align-items:center;gap:4px}
-.cr{font-size:9px;color:var(--muted);margin-top:3px;font-family:var(--mono)}
-/* Playground */
-.pg-grid{display:grid;grid-template-columns:280px 1fr;gap:10px;height:calc(100% - 10px)}
+.alarm-row{padding:4px 7px;border-bottom:1px solid var(--card2);font-size:10px;display:flex;gap:6px;align-items:flex-start}
+
+/* ── PROFILES TAB ── */
+#tab-profiles{overflow:hidden;padding:8px 10px}
+.profiles-grid{
+  flex:1;min-height:0;
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  grid-template-rows:1fr 1fr;
+  gap:7px;
+}
+@media(max-width:1100px){.profiles-grid{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr 1fr}}
+.cp{
+  background:var(--card);border:1px solid var(--border);border-radius:8px;
+  padding:8px 10px;
+  display:flex;flex-direction:column;
+  min-height:0;overflow:hidden;
+}
+.ct{font-size:10px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:5px;flex-shrink:0}
+.chart-canvas-wrap{flex:1;min-height:0;position:relative}
+.chart-canvas-wrap canvas{position:absolute;inset:0;width:100%!important;height:100%!important}
+.cr{font-size:9px;color:var(--muted);margin-top:3px;font-family:var(--mono);flex-shrink:0}
+/* Axis settings panel */
+.axis-panel{display:none;flex-shrink:0;padding:5px 0 2px;border-top:1px solid var(--border);margin-top:4px;
+  display:none;align-items:center;gap:6px;flex-wrap:wrap}
+.axis-panel.open{display:flex}
+.axis-panel input{width:62px;padding:3px 6px;font-size:10px}
+.axis-panel button{padding:2px 7px;font-size:10px}
+.axis-panel label{font-size:10px;color:var(--muted)}
+
+/* ── PLAYGROUND ── */
+.pg-grid{display:grid;grid-template-columns:270px 1fr;gap:10px;flex:1;min-height:0}
 @media(max-width:880px){.pg-grid{grid-template-columns:1fr}}
-.pg-left{overflow-y:auto}
-.pg-left::-webkit-scrollbar{width:3px}.pg-left::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.pg-left{overflow-y:auto;min-height:0}
+.pg-left::-webkit-scrollbar{width:3px}
+.pg-left::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 .sl-grp{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px;margin-bottom:7px}
 .sl-row{margin-bottom:9px}
 .sl-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
@@ -87,8 +124,10 @@ nav button.active{background:var(--accent);border-color:var(--accent);color:#fff
 .preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px}
 .pb{font-size:10px;padding:4px 6px;text-align:left}
 .pb:hover{border-color:var(--accent);color:var(--accent)}
-.pg-right{display:flex;flex-direction:column;gap:7px}
-/* Config */
+.pg-right{display:flex;flex-direction:column;gap:7px;min-height:0;overflow-y:auto}
+.pg-right::-webkit-scrollbar{width:3px}
+.pg-right::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+/* ── CONFIG ── */
 .cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 @media(max-width:800px){.cfg-grid{grid-template-columns:1fr}}
 .cs{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px}
@@ -96,20 +135,22 @@ nav button.active{background:var(--accent);border-color:var(--accent);color:#fff
 .fg3{grid-template-columns:1fr 1fr 1fr}
 .fi{display:flex;flex-direction:column;gap:2px}
 label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px}
-.cact{display:flex;gap:5px;margin-top:9px;flex-wrap:wrap;align-items:center}
+.info-icon{font-size:11px;cursor:help;color:var(--muted);margin-left:3px}
+.cact{display:flex;gap:5px;margin-top:9px;flex-wrap:wrap;align-items:center;flex-shrink:0}
 #cfg-msg{font-size:11px;color:var(--green)}
-/* Eq log */
+/* ── EQ LOG ── */
 .eq-tbl{width:100%;border-collapse:collapse;font-size:10px;font-family:var(--mono)}
-.eq-tbl th{padding:4px 7px;text-align:left;color:var(--muted);border-bottom:1px solid var(--border);font-weight:500;font-size:9px;letter-spacing:.06em}
-.eq-tbl td{padding:3px 7px;border-bottom:1px solid #0d1626;vertical-align:top}
-.eq-tbl tr:hover td{background:#111827}
-.eq-scroll{max-height:calc(100vh - 170px);overflow-y:auto;border:1px solid var(--border);border-radius:8px}
-.eq-scroll::-webkit-scrollbar{width:3px}.eq-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-/* Scrubber */
+.eq-tbl th{padding:4px 7px;text-align:left;color:var(--muted);border-bottom:1px solid var(--border);font-weight:500;font-size:9px}
+.eq-tbl td{padding:3px 7px;border-bottom:1px solid var(--card2);vertical-align:top}
+.eq-tbl tr:hover td{background:var(--card)}
+.eq-scroll{flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:8px;min-height:0}
+.eq-scroll::-webkit-scrollbar{width:3px}
+.eq-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+/* ── SCRUBBER ── */
 .scrubber{display:flex;align-items:center;gap:7px;padding:5px 9px;
-  background:var(--card2);border:1px solid var(--border);border-radius:6px;margin-bottom:7px}
+  background:var(--card2);border:1px solid var(--border);border-radius:6px;margin-bottom:7px;flex-shrink:0}
 .scrubber input[type=range]{flex:1}
-/* Overlay */
+/* ── OVERLAY ── */
 #overlay{position:fixed;inset:0;background:rgba(8,16,30,.97);display:flex;flex-direction:column;
   align-items:center;justify-content:center;z-index:300;gap:11px}
 #overlay.hidden{display:none}
@@ -120,8 +161,6 @@ label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px}
 .url-row input{flex:1}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes lp{0%,100%{opacity:1}50%{opacity:.3}}
-@keyframes fR{from{stroke-dashoffset:50}to{stroke-dashoffset:0}}
-@keyframes fL{from{stroke-dashoffset:0}to{stroke-dashoffset:50}}
 </style>
 </head>
 <body>
@@ -129,7 +168,7 @@ label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px}
   <div class="spinner"></div>
   <div id="log-msg" class="log-msg">Connecting…</div>
   <div class="url-row">
-    <input type="text" id="api-url" value="http://localhost:8000" placeholder="API URL"/>
+    <input type="text" id="api-url" value="http://localhost:8000"/>
     <button class="primary" onclick="connect()">Connect</button>
   </div>
   <p style="font-size:10px;color:var(--muted)">Run <code style="color:var(--green)">start.bat</code> first</p>
@@ -139,7 +178,7 @@ label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px}
 <div class="topbar">
   <div class="logo">🔧</div>
   <div><div style="font-size:13px;font-weight:600">RTTM Digital Twin</div>
-    <div style="font-size:9px;color:var(--muted)">INTECH v2.1</div></div>
+    <div style="font-size:9px;color:var(--muted)">INTECH v2.2</div></div>
   <span class="dot dot-r" id="conn-dot"></span>
   <span id="conn-lbl" style="font-size:11px;color:var(--muted)">Offline</span>
   <span id="prod-pill" style="display:none;font-size:10px;color:var(--muted)">
@@ -152,9 +191,10 @@ label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px}
     <button onclick="showTab('log',this)">📋 Equations</button>
   </nav>
   <div class="ctrls">
+    <button id="btn-theme" onclick="cycleTheme()" title="Toggle theme" style="font-size:14px;padding:4px 8px">🌙</button>
     <button id="btn-start" class="primary" onclick="startSim()" disabled>▶ Start</button>
     <button id="btn-stop" onclick="stopSim()" disabled>■ Stop</button>
-    <select id="sim-spd" style="width:75px;font-size:11px" title="Steps per tick">
+    <select id="sim-spd" style="width:78px;font-size:11px">
       <option value="1">1× slow</option><option value="3">3×</option>
       <option value="5" selected>5× fast</option><option value="10">10×</option>
       <option value="20">20× turbo</option>
@@ -166,7 +206,7 @@ label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px}
 
 <div class="main">
 
-<!-- ═══ TWIN TAB ═══════════════════════════════════════════════════════════ -->
+<!-- ════════ TWIN ════════ -->
 <div id="tab-twin" class="tab active">
   <div class="stats">
     <div class="stat"><span class="sv" id="s-t">—</span><span class="sl">Sim time s</span></div>
@@ -180,6 +220,7 @@ label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px}
     <div class="stat"><span class="sv" id="s-imb" style="color:var(--green)">0.00</span><span class="sl">Imbalance L/s</span></div>
   </div>
 
+  <!-- Digital Twin -->
   <div id="twin-wrap">
     <div class="twin-btns">
       <button class="active" onclick="setView('pressure',this)">Pressure</button>
@@ -190,22 +231,33 @@ label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px}
     <svg id="twin-svg" xmlns="http://www.w3.org/2000/svg"></svg>
   </div>
 
+  <!-- History scrubber -->
   <div class="scrubber">
     <span style="font-size:10px;color:var(--muted)">History:</span>
     <input type="range" id="hist-sl" min="0" max="0" value="0" oninput="scrub(this.value)"/>
     <span id="hist-lbl" style="font-size:10px;font-family:var(--mono);color:var(--muted);width:55px">t=0s</span>
-    <button onclick="goLive()" style="font-size:10px;padding:2px 6px">Live</button>
+    <button onclick="goLive()" style="font-size:10px;padding:2px 6px">⬤ Live</button>
   </div>
 
-  <div style="display:grid;grid-template-columns:1fr 260px;gap:8px">
-    <div class="card">
-      <h2>Pressure bar chart — node by node (API 1130)</h2>
-      <div id="bar-rows" style="max-height:155px;overflow-y:auto"></div>
+  <!-- Bottom grid: bar chart + leak panel -->
+  <div style="display:grid;grid-template-columns:1fr 255px;gap:8px;flex:1;min-height:0">
+    <div class="card" style="display:flex;flex-direction:column;min-height:0;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;margin-bottom:6px">
+        <h2 style="margin:0">Pipeline Node View</h2>
+        <select id="bar-param" onchange="renderBar(simData)" style="width:auto;font-size:11px;padding:3px 6px">
+          <option value="pressure_bar">Pressure (bar)</option>
+          <option value="head_m">Head (m)</option>
+          <option value="flow_ls">Flow (L/s)</option>
+          <option value="temperature_c">Temperature (°C)</option>
+          <option value="density_kgm3">Density (kg/m³)</option>
+        </select>
+      </div>
+      <div id="bar-rows" style="overflow-y:auto;flex:1;min-height:0"></div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:7px">
-      <div class="card" style="padding:9px">
+    <div style="display:flex;flex-direction:column;gap:7px;min-height:0">
+      <div class="card" style="padding:9px;flex-shrink:0">
         <h2>Leak Detection</h2>
-        <div class="ld-box" id="ld-box" style="background:#052e16;border:1px solid #166534">
+        <div class="ld-box" id="ld-box" style="background:#052e16;border-color:#166534">
           <div class="ld-big" id="ld-st" style="color:var(--green)">NOMINAL</div>
           <div class="ld-sub" id="ld-det" style="color:var(--muted)">All clear</div>
         </div>
@@ -222,12 +274,12 @@ label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px}
           Total: <strong id="ld-cnt" style="color:var(--text)">0</strong>
         </div>
       </div>
-      <div class="card" style="padding:9px;flex:1">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+      <div class="card" style="padding:9px;flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;flex-shrink:0">
           <h2 style="margin:0">Alarm Log</h2>
           <button onclick="$('alarm-log').innerHTML=''" style="font-size:9px;padding:1px 5px">Clear</button>
         </div>
-        <div class="alarm-scroll" id="alarm-log">
+        <div class="alarm-scroll" id="alarm-log" style="flex:1;overflow-y:auto">
           <div style="font-size:10px;color:var(--muted);padding:5px">No alarms</div>
         </div>
       </div>
@@ -235,29 +287,89 @@ label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px}
   </div>
 </div>
 
-<!-- ═══ PROFILES TAB ═════════════════════════════════════════════════════ -->
+<!-- ════════ PROFILES ════════ -->
 <div id="tab-profiles" class="tab">
-  <div class="chart-grid" style="margin-bottom:7px">
-    <div class="cp"><div class="ct"><span style="color:var(--accent)">●</span>Pressure (bar)</div>
-      <canvas id="ch-p" height="115"></canvas><div class="cr" id="rng-p">—</div></div>
-    <div class="cp"><div class="ct"><span style="color:var(--teal)">●</span>Head (m)</div>
-      <canvas id="ch-h" height="115"></canvas><div class="cr" id="rng-h">—</div></div>
-    <div class="cp"><div class="ct"><span style="color:var(--green)">●</span>Flow (L/s)</div>
-      <canvas id="ch-q" height="115"></canvas><div class="cr" id="rng-q">—</div></div>
-    <div class="cp"><div class="ct"><span style="color:var(--orange)">●</span>Temperature (°C)</div>
-      <canvas id="ch-t" height="115"></canvas><div class="cr" id="rng-t">—</div></div>
-    <div class="cp"><div class="ct"><span style="color:var(--purple)">●</span>Density (kg/m³)</div>
-      <canvas id="ch-d" height="115"></canvas><div class="cr" id="rng-d">—</div></div>
-    <div class="cp"><div class="ct"><span style="color:var(--pink)">●</span>All Profiles (normalised 0–1)</div>
-      <canvas id="ch-all" height="115"></canvas><div class="cr" id="rng-all" style="color:var(--muted)">0–1 per profile</div></div>
+  <div class="profiles-grid">
+
+    <div class="cp">
+      <div class="ct"><span style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0"></span>Pressure (bar)
+        <button onclick="toggleAxis('axp')" style="margin-left:auto;font-size:9px;padding:1px 5px;border-radius:4px">⚙ Axis</button></div>
+      <div class="chart-canvas-wrap"><canvas id="ch-p"></canvas></div>
+      <div class="axis-panel" id="axp">
+        <label>Y min</label><input type="number" id="ymin-p" placeholder="auto"/>
+        <label>Y max</label><input type="number" id="ymax-p" placeholder="auto"/>
+        <button onclick="setAxis('ch-p','ymin-p','ymax-p')" class="primary">Set</button>
+        <button onclick="resetAxis('ch-p','ymin-p','ymax-p')">Auto</button>
+      </div>
+      <div class="cr" id="rng-p">—</div>
+    </div>
+
+    <div class="cp">
+      <div class="ct"><span style="width:8px;height:8px;border-radius:50%;background:var(--teal);flex-shrink:0"></span>Head (m)
+        <button onclick="toggleAxis('axh')" style="margin-left:auto;font-size:9px;padding:1px 5px;border-radius:4px">⚙ Axis</button></div>
+      <div class="chart-canvas-wrap"><canvas id="ch-h"></canvas></div>
+      <div class="axis-panel" id="axh">
+        <label>Y min</label><input type="number" id="ymin-h" placeholder="auto"/>
+        <label>Y max</label><input type="number" id="ymax-h" placeholder="auto"/>
+        <button onclick="setAxis('ch-h','ymin-h','ymax-h')" class="primary">Set</button>
+        <button onclick="resetAxis('ch-h','ymin-h','ymax-h')">Auto</button>
+      </div>
+      <div class="cr" id="rng-h">—</div>
+    </div>
+
+    <div class="cp">
+      <div class="ct"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0"></span>Flow (L/s)
+        <button onclick="toggleAxis('axq')" style="margin-left:auto;font-size:9px;padding:1px 5px;border-radius:4px">⚙ Axis</button></div>
+      <div class="chart-canvas-wrap"><canvas id="ch-q"></canvas></div>
+      <div class="axis-panel" id="axq">
+        <label>Y min</label><input type="number" id="ymin-q" placeholder="auto"/>
+        <label>Y max</label><input type="number" id="ymax-q" placeholder="auto"/>
+        <button onclick="setAxis('ch-q','ymin-q','ymax-q')" class="primary">Set</button>
+        <button onclick="resetAxis('ch-q','ymin-q','ymax-q')">Auto</button>
+      </div>
+      <div class="cr" id="rng-q">—</div>
+    </div>
+
+    <div class="cp">
+      <div class="ct"><span style="width:8px;height:8px;border-radius:50%;background:var(--orange);flex-shrink:0"></span>Temperature (°C)
+        <button onclick="toggleAxis('axt')" style="margin-left:auto;font-size:9px;padding:1px 5px;border-radius:4px">⚙ Axis</button></div>
+      <div class="chart-canvas-wrap"><canvas id="ch-t"></canvas></div>
+      <div class="axis-panel" id="axt">
+        <label>Y min</label><input type="number" id="ymin-t" placeholder="auto"/>
+        <label>Y max</label><input type="number" id="ymax-t" placeholder="auto"/>
+        <button onclick="setAxis('ch-t','ymin-t','ymax-t')" class="primary">Set</button>
+        <button onclick="resetAxis('ch-t','ymin-t','ymax-t')">Auto</button>
+      </div>
+      <div class="cr" id="rng-t">—</div>
+    </div>
+
+    <div class="cp">
+      <div class="ct"><span style="width:8px;height:8px;border-radius:50%;background:var(--purple);flex-shrink:0"></span>Density (kg/m³)
+        <button onclick="toggleAxis('axd')" style="margin-left:auto;font-size:9px;padding:1px 5px;border-radius:4px">⚙ Axis</button></div>
+      <div class="chart-canvas-wrap"><canvas id="ch-d"></canvas></div>
+      <div class="axis-panel" id="axd">
+        <label>Y min</label><input type="number" id="ymin-d" placeholder="auto"/>
+        <label>Y max</label><input type="number" id="ymax-d" placeholder="auto"/>
+        <button onclick="setAxis('ch-d','ymin-d','ymax-d')" class="primary">Set</button>
+        <button onclick="resetAxis('ch-d','ymin-d','ymax-d')">Auto</button>
+      </div>
+      <div class="cr" id="rng-d">—</div>
+    </div>
+
+    <div class="cp">
+      <div class="ct"><span style="width:8px;height:8px;border-radius:50%;background:var(--pink);flex-shrink:0"></span>All Profiles (normalised 0–1)</div>
+      <div class="chart-canvas-wrap"><canvas id="ch-all"></canvas></div>
+      <div class="cr" id="rng-all" style="color:var(--muted)">Each profile scaled independently to 0–1</div>
+    </div>
+
   </div>
 </div>
 
-<!-- ═══ PLAYGROUND TAB ═══════════════════════════════════════════════════ -->
+<!-- ════════ PLAYGROUND ════════ -->
 <div id="tab-playground" class="tab">
   <div class="pg-grid">
     <div class="pg-left">
-      <h2 style="margin-bottom:7px">Parameter Playground — instant simulation effect</h2>
+      <h2 style="margin-bottom:7px;flex-shrink:0">Parameter Playground — effect on live simulation</h2>
       <div class="sl-grp">
         <h2>Quick Scenarios</h2>
         <div class="preset-grid">
@@ -274,49 +386,49 @@ label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px}
       <div class="sl-grp">
         <h2>Boundary Conditions <span style="color:var(--green);font-size:9px">(instant)</span></h2>
         <div class="sl-row"><div class="sl-hdr"><span class="sl-name">Inlet Pressure</span><span class="sl-val" id="v-pin">50 bar</span></div>
-          <input type="range" id="sl-pin" min="10" max="100" step="0.5" value="50" oninput="slUpdate('pin',this.value)"/></div>
+          <input type="range" id="sl-pin" min="10" max="100" step="0.5" value="50" oninput="slUp('pin',this.value)"/></div>
         <div class="sl-row"><div class="sl-hdr"><span class="sl-name">Outlet Pressure</span><span class="sl-val" id="v-pout">30 bar</span></div>
-          <input type="range" id="sl-pout" min="0" max="80" step="0.5" value="30" oninput="slUpdate('pout',this.value)"/></div>
+          <input type="range" id="sl-pout" min="0" max="80" step="0.5" value="30" oninput="slUp('pout',this.value)"/></div>
         <div class="sl-row"><div class="sl-hdr"><span class="sl-name">Inlet Flow</span><span class="sl-val" id="v-qin">150 L/s</span></div>
-          <input type="range" id="sl-qin" min="10" max="300" step="1" value="150" oninput="slUpdate('qin',this.value)"/></div>
+          <input type="range" id="sl-qin" min="10" max="300" step="1" value="150" oninput="slUp('qin',this.value)"/></div>
         <div class="sl-row"><div class="sl-hdr"><span class="sl-name">Outlet Flow</span><span class="sl-val" id="v-qout">150 L/s</span></div>
-          <input type="range" id="sl-qout" min="0" max="300" step="1" value="150" oninput="slUpdate('qout',this.value)"/></div>
+          <input type="range" id="sl-qout" min="0" max="300" step="1" value="150" oninput="slUp('qout',this.value)"/></div>
       </div>
       <div class="sl-grp">
-        <h2>Fluid Properties <button onclick="reconfigSliders()" style="float:right;font-size:9px;padding:2px 6px" class="primary">Apply ↺</button></h2>
+        <h2>Fluid Properties <button onclick="reconfigSl()" style="float:right;font-size:9px;padding:2px 6px" class="primary">Apply ↺</button></h2>
         <div class="sl-row"><div class="sl-hdr"><span class="sl-name">Density (kg/m³)</span><span class="sl-val" id="v-rho">850</span></div>
-          <input type="range" id="sl-rho" min="600" max="1100" step="5" value="850" oninput="slUpdate('rho',this.value)"/></div>
+          <input type="range" id="sl-rho" min="600" max="1100" step="5" value="850" oninput="slUp('rho',this.value)"/></div>
         <div class="sl-row"><div class="sl-hdr"><span class="sl-name">Viscosity (mPa·s)</span><span class="sl-val" id="v-vis">10</span></div>
-          <input type="range" id="sl-vis" min="0.5" max="100" step="0.5" value="10" oninput="slUpdate('vis',this.value)"/></div>
+          <input type="range" id="sl-vis" min="0.5" max="100" step="0.5" value="10" oninput="slUp('vis',this.value)"/></div>
         <div class="sl-row"><div class="sl-hdr"><span class="sl-name">Bulk Modulus (GPa)</span><span class="sl-val" id="v-bulk">1.70</span></div>
-          <input type="range" id="sl-bulk" min="0.5" max="2.5" step="0.05" value="1.70" oninput="slUpdate('bulk',this.value)"/></div>
+          <input type="range" id="sl-bulk" min="0.5" max="2.5" step="0.05" value="1.70" oninput="slUp('bulk',this.value)"/></div>
         <div class="sl-row"><div class="sl-hdr"><span class="sl-name">Temperature In (°C)</span><span class="sl-val" id="v-temp">60</span></div>
-          <input type="range" id="sl-temp" min="5" max="120" step="1" value="60" oninput="slUpdate('temp',this.value)"/></div>
+          <input type="range" id="sl-temp" min="5" max="120" step="1" value="60" oninput="slUp('temp',this.value)"/></div>
       </div>
       <div class="sl-grp">
-        <h2>Pipeline Geometry <button onclick="reconfigSliders()" style="float:right;font-size:9px;padding:2px 6px" class="primary">Apply ↺</button></h2>
+        <h2>Pipeline Geometry <button onclick="reconfigSl()" style="float:right;font-size:9px;padding:2px 6px" class="primary">Apply ↺</button></h2>
         <div class="sl-row"><div class="sl-hdr"><span class="sl-name">Diameter (m)</span><span class="sl-val" id="v-dia">0.305</span></div>
-          <input type="range" id="sl-dia" min="0.1" max="0.9" step="0.01" value="0.305" oninput="slUpdate('dia',this.value)"/></div>
+          <input type="range" id="sl-dia" min="0.1" max="0.9" step="0.01" value="0.305" oninput="slUp('dia',this.value)"/></div>
         <div class="sl-row"><div class="sl-hdr"><span class="sl-name">Roughness (mm)</span><span class="sl-val" id="v-rough">0.046</span></div>
-          <input type="range" id="sl-rough" min="0.001" max="0.5" step="0.005" value="0.046" oninput="slUpdate('rough',this.value)"/></div>
-        <div class="sl-row"><div class="sl-hdr"><span class="sl-name">Outlet Elevation Δ (m)</span><span class="sl-val" id="v-elev">0</span></div>
-          <input type="range" id="sl-elev" min="-200" max="200" step="5" value="0" oninput="slUpdate('elev',this.value)" onchange="reconfigSliders()"/></div>
+          <input type="range" id="sl-rough" min="0.001" max="0.5" step="0.005" value="0.046" oninput="slUp('rough',this.value)"/></div>
+        <div class="sl-row"><div class="sl-hdr"><span class="sl-name">Outlet Elev Δ (m)</span><span class="sl-val" id="v-elev">0</span></div>
+          <input type="range" id="sl-elev" min="-200" max="200" step="5" value="0" oninput="slUp('elev',this.value)" onchange="reconfigSl()"/></div>
       </div>
     </div>
     <div class="pg-right">
-      <div class="cp" style="flex:1"><div class="ct">Live Pressure Profile</div>
-        <canvas id="pg-p" style="height:150px"></canvas></div>
-      <div class="cp" style="flex:1"><div class="ct">Live Flow Profile</div>
-        <canvas id="pg-q" style="height:150px"></canvas></div>
+      <div class="cp" style="flex:1"><div class="ct">Pressure Profile</div>
+        <div class="chart-canvas-wrap" style="height:160px;position:relative"><canvas id="pg-p" style="position:absolute;inset:0;width:100%!important;height:100%!important"></canvas></div></div>
+      <div class="cp" style="flex:1"><div class="ct">Flow Profile</div>
+        <div class="chart-canvas-wrap" style="height:160px;position:relative"><canvas id="pg-q" style="position:absolute;inset:0;width:100%!important;height:100%!important"></canvas></div></div>
       <div class="cp" style="flex:1"><div class="ct">Temperature & Density</div>
-        <canvas id="pg-td" style="height:150px"></canvas></div>
+        <div class="chart-canvas-wrap" style="height:160px;position:relative"><canvas id="pg-td" style="position:absolute;inset:0;width:100%!important;height:100%!important"></canvas></div></div>
     </div>
   </div>
 </div>
 
-<!-- ═══ CONFIG TAB ════════════════════════════════════════════════════ -->
+<!-- ════════ CONFIG ════════ -->
 <div id="tab-config" class="tab">
-  <div class="cfg-grid">
+  <div class="cfg-grid" style="flex:1">
     <div class="cs" style="grid-column:1/-1">
       <h2>Product Selection</h2>
       <div class="fg fg3">
@@ -327,7 +439,7 @@ label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px}
             <option value="gas_mixture">Gas Mixture</option>
           </select></div>
         <div class="fi"><label>Product</label><select id="cfg-prod"></select></div>
-        <div class="fi" style="align-self:end"><button class="primary" onclick="loadProd()">Load →</button></div>
+        <div class="fi" style="align-self:end"><button class="primary" onclick="loadProd()">Load Properties →</button></div>
       </div>
     </div>
     <div class="cs">
@@ -360,14 +472,28 @@ label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px}
     <div class="cs">
       <h2>Leak Detection Thresholds</h2>
       <div class="fg">
-        <div class="fi"><label>Flow σ (m³/s)</label><input id="t-sigq" type="number" value="0.0003" step="0.0001"/></div>
-        <div class="fi"><label>Pressure σ (Pa)</label><input id="t-sigp" type="number" value="5000" step="500"/></div>
-        <div class="fi"><label>k Warning</label><input id="t-kw" type="number" value="2.0" step="0.1"/></div>
-        <div class="fi"><label>k Alarm</label><input id="t-ka" type="number" value="3.0" step="0.1"/></div>
-        <div class="fi"><label>k Critical</label><input id="t-kc" type="number" value="5.0" step="0.1"/></div>
-        <div class="fi"><label>VB Window</label><input id="t-vbw" type="number" value="10"/></div>
-        <div class="fi"><label>PD Window</label><input id="t-pdw" type="number" value="5"/></div>
-        <div class="fi"><label>Min Leak %</label><input id="t-minl" type="number" value="0.5" step="0.1"/></div>
+        <div class="fi"><label>Flow σ (m³/s)
+          <span class="tip">ⓘ<span class="tip-box">One standard deviation of your flow meter uncertainty. Typically 0.1–0.3% of nominal flow. Used to set alarm thresholds.</span></span>
+        </label><input id="t-sigq" type="number" value="0.0003" step="0.0001"/></div>
+        <div class="fi"><label>Pressure σ (Pa)
+          <span class="tip">ⓘ<span class="tip-box">One standard deviation of pressure sensor noise. Typically 1,000–10,000 Pa depending on transmitter class.</span></span>
+        </label><input id="t-sigp" type="number" value="5000" step="500"/></div>
+        <div class="fi"><label>k Warning (×σ)</label><input id="t-kw" type="number" value="2.0" step="0.1"/></div>
+        <div class="fi"><label>k Alarm (×σ)</label><input id="t-ka" type="number" value="3.0" step="0.1"/></div>
+        <div class="fi"><label>k Critical (×σ)</label><input id="t-kc" type="number" value="5.0" step="0.1"/></div>
+        <div class="fi"><label>
+          VB Window (samples)
+          <span class="tip">ⓘ<span class="tip-box">Volume Balance window: number of SCADA samples averaged before raising an alarm. Larger = less false alarms but slower detection. Typical: 5–15 samples.</span></span>
+        </label><input id="t-vbw" type="number" value="10"/></div>
+        <div class="fi"><label>
+          PD Window (samples)
+          <span class="tip">ⓘ<span class="tip-box">Pressure Deviation window: samples of RTTM residual (measured − simulated pressure) averaged before alarm. Filters sensor noise. Typical: 3–8 samples.</span></span>
+        </label><input id="t-pdw" type="number" value="5"/></div>
+        <div class="fi"><label>Min Detectable Leak (%)</label><input id="t-minl" type="number" value="0.5" step="0.1"/></div>
+      </div>
+      <div style="margin-top:8px;padding:6px 8px;background:var(--bg);border-radius:5px;font-size:10px;color:var(--muted);line-height:1.7">
+        <strong style="color:var(--text)">VB (Volume Balance)</strong> — compares measured inlet vs outlet flow over a sliding window. Simple, fast, no model needed. Cannot locate leak.<br/>
+        <strong style="color:var(--text)">PD (Pressure Deviation)</strong> — compares RTTM-simulated pressure against SCADA measurements. Can estimate leak location. Requires accurate transient model.
       </div>
     </div>
     <div class="cs">
@@ -390,14 +516,14 @@ label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px}
   <div class="cact">
     <button class="primary" onclick="applyConfig()">✓ Apply All</button>
     <button onclick="doInit()">↺ Re-initialize</button>
-    <button onclick="applyThresholds()">⚡ Thresholds Only</button>
+    <button onclick="applyThr()">⚡ Thresholds Only</button>
     <span id="cfg-msg"></span>
   </div>
 </div>
 
-<!-- ═══ EQUATIONS TAB ════════════════════════════════════════════════ -->
+<!-- ════════ EQUATIONS ════════ -->
 <div id="tab-log" class="tab">
-  <div style="display:flex;gap:5px;align-items:center;margin-bottom:7px;flex-wrap:wrap">
+  <div style="display:flex;gap:5px;align-items:center;margin-bottom:7px;flex-shrink:0;flex-wrap:wrap">
     <input type="text" id="eq-flt" placeholder="Filter equation…" style="max-width:200px" oninput="renderEq()"/>
     <select id="eq-lim" onchange="fetchEq()" style="width:auto">
       <option value="50">50</option><option value="100" selected>100</option>
@@ -419,44 +545,97 @@ label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px}
 </div><!-- #app -->
 
 <script>
-// ── State ─────────────────────────────────────────────────────────────────────
-let API='http://localhost:8000', timer=null, eqTimer=null;
-let leakNode=null, leakFlow=0, twinView='pressure';
-let live=true, hist=[], simData=null, prodLib={}, eqAll=[];
-let BC={pIn:50,pOut:30,qIn:150,qOut:150};
-const $=id=>document.getElementById(id);
-
-// ── Chart.js ──────────────────────────────────────────────────────────────────
-const C={};
-const CDEFS=[
-  {id:'ch-p',key:'pressure_bar', color:'#3b82f6',unit:'bar',  rng:'rng-p'},
-  {id:'ch-h',key:'head_m',       color:'#14b8a6',unit:'m',    rng:'rng-h'},
-  {id:'ch-q',key:'flow_ls',      color:'#22c55e',unit:'L/s',  rng:'rng-q'},
-  {id:'ch-t',key:'temperature_c',color:'#f97316',unit:'°C',   rng:'rng-t'},
-  {id:'ch-d',key:'density_kgm3', color:'#a855f7',unit:'kg/m³',rng:'rng-d'},
-];
-const COPT=(unit,color)=>({
-  animation:false,responsive:true,maintainAspectRatio:false,
-  plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,
-    callbacks:{label:i=>`${i.parsed.y.toFixed(2)} ${unit}`}}},
-  scales:{
-    x:{ticks:{color:'#475569',font:{size:8},maxTicksLimit:7},grid:{color:'#1e2d45'},
-       title:{display:true,text:'Distance (km)',color:'#475569',font:{size:8}}},
-    y:{ticks:{color:'#475569',font:{size:8},maxTicksLimit:5},grid:{color:'#1e2d45'}},
+// ══════════════════════════════════════════════════════════════
+// THEMES
+// ══════════════════════════════════════════════════════════════
+const THEMES={
+  dark:{
+    '--bg':'#08101e','--card':'#111827','--card2':'#0d1626','--border':'#1e2d45',
+    '--text':'#e2e8f0','--muted':'#64748b','--input-bg':'#0a1220',
+    '--chart-grid':'#1e2d45','--chart-tick':'#64748b',
+    icon:'🌙', label:'Dark'
+  },
+  grey:{
+    '--bg':'#131920','--card':'#1c2536','--card2':'#161d2a','--border':'#28384f',
+    '--text':'#dde3ec','--muted':'#7a8a9a','--input-bg':'#0f1824',
+    '--chart-grid':'#1e2d3a','--chart-tick':'#6b7a8a',
+    icon:'☁️', label:'Grey'
+  },
+  light:{
+    '--bg':'#f0f4f8','--card':'#ffffff','--card2':'#f8fafc','--border':'#d1dae6',
+    '--text':'#0f172a','--muted':'#6b7280','--input-bg':'#f8fafc',
+    '--chart-grid':'#e5eaf0','--chart-tick':'#8b949e',
+    icon:'☀️', label:'Light'
   }
-});
-
-function mkChart(cid,color,unit,opts){
-  const ctx=$(cid).getContext('2d');
-  return new Chart(ctx,{type:'line',
-    data:{labels:[],datasets:[{data:[],borderColor:color,backgroundColor:color+'1a',
-      fill:true,tension:0.35,pointRadius:0,borderWidth:2}]},
-    options:opts||COPT(unit,color)});
+};
+let themeKey='dark';
+const themeOrder=['dark','grey','light'];
+function cycleTheme(){
+  themeKey=themeOrder[(themeOrder.indexOf(themeKey)+1)%3];
+  applyTheme(themeKey);
+}
+function applyTheme(key){
+  const t=THEMES[key];
+  const r=document.documentElement;
+  Object.entries(t).forEach(([k,v])=>{if(k!=='icon'&&k!=='label')r.style.setProperty(k,v);});
+  $('btn-theme').textContent=t.icon+' '+t.label;
+  // Re-colour charts
+  const g=t['--chart-grid'], tk=t['--chart-tick'];
+  Object.values(C).forEach(c=>{
+    if(!c?.options?.scales)return;
+    ['x','y','y2'].forEach(ax=>{
+      if(c.options.scales[ax]){
+        if(c.options.scales[ax].grid)c.options.scales[ax].grid.color=g;
+        if(c.options.scales[ax].ticks)c.options.scales[ax].ticks.color=tk;
+      }
+    });
+    if(c.options.plugins?.legend?.labels)c.options.plugins.legend.labels.color=tk;
+    c.update('none');
+  });
 }
 
+// ══════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════
+let API='http://localhost:8000', pollTimer=null, eqTimer=null;
+let leakNode=null,leakFlow=0,twinView='pressure';
+let live=true,hist=[],simData=null,prodLib={},eqAll=[];
+let BC={pIn:50,pOut:30,qIn:150,qOut:150};
+const $=id=>document.getElementById(id);
+const C={}; // chart instances
+// Twin rebuild tracking
+const _tw={built:false,n:0,w:0,leak:undefined,view:''};
+
+// ══════════════════════════════════════════════════════════════
+// CHART.JS
+// ══════════════════════════════════════════════════════════════
+function chartOpts(unit,color){
+  const g=THEMES[themeKey]['--chart-grid'],tk=THEMES[themeKey]['--chart-tick'];
+  return{
+    animation:false,responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,
+      callbacks:{label:i=>`${i.parsed.y.toFixed(3)} ${unit}`}}},
+    scales:{
+      x:{ticks:{color:tk,font:{size:8},maxTicksLimit:7},grid:{color:g},
+         title:{display:true,text:'Distance (km)',color:tk,font:{size:8}}},
+      y:{ticks:{color:tk,font:{size:8},maxTicksLimit:5},grid:{color:g}},
+    }
+  };
+}
+function mkLine(cid,color,unit){
+  const ctx=$(cid).getContext('2d');
+  return new Chart(ctx,{type:'line',
+    data:{labels:[],datasets:[{data:[],borderColor:color,backgroundColor:color+'18',
+      fill:true,tension:0.35,pointRadius:0,borderWidth:2}]},
+    options:chartOpts(unit,color)});
+}
 function initCharts(){
-  CDEFS.forEach(d=>{C[d.id]=mkChart(d.id,d.color,d.unit)});
-  // All-normalised
+  C['ch-p'] =mkLine('ch-p','#3b82f6','bar');
+  C['ch-h'] =mkLine('ch-h','#14b8a6','m');
+  C['ch-q'] =mkLine('ch-q','#22c55e','L/s');
+  C['ch-t'] =mkLine('ch-t','#f97316','°C');
+  C['ch-d'] =mkLine('ch-d','#a855f7','kg/m³');
+  const g=THEMES[themeKey]['--chart-grid'],tk=THEMES[themeKey]['--chart-tick'];
   C['ch-all']=new Chart($('ch-all').getContext('2d'),{type:'line',
     data:{labels:[],datasets:[
       {label:'P',data:[],borderColor:'#3b82f6',fill:false,tension:.3,pointRadius:0,borderWidth:1.5},
@@ -466,160 +645,257 @@ function initCharts(){
       {label:'ρ',data:[],borderColor:'#a855f7',fill:false,tension:.3,pointRadius:0,borderWidth:1.5},
     ]},
     options:{animation:false,responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:true,labels:{color:'#94a3b8',font:{size:8},boxWidth:8}}},
-      scales:{x:{ticks:{color:'#475569',font:{size:8},maxTicksLimit:6},grid:{color:'#1e2d45'}},
-              y:{ticks:{color:'#475569',font:{size:8}},grid:{color:'#1e2d45'}}}}});
-  // Playground
-  C['pg-p']=mkChart('pg-p','#3b82f6','bar');
-  C['pg-q']=mkChart('pg-q','#22c55e','L/s');
+      plugins:{legend:{display:true,labels:{color:tk,font:{size:8},boxWidth:8}}},
+      scales:{x:{ticks:{color:tk,font:{size:8},maxTicksLimit:6},grid:{color:g}},
+              y:{ticks:{color:tk,font:{size:8}},grid:{color:g}}}}});
+  C['pg-p']=mkLine('pg-p','#3b82f6','bar');
+  C['pg-q']=mkLine('pg-q','#22c55e','L/s');
   C['pg-td']=new Chart($('pg-td').getContext('2d'),{type:'line',
     data:{labels:[],datasets:[
       {label:'T °C',data:[],borderColor:'#f97316',fill:false,tension:.3,pointRadius:0,borderWidth:2},
       {label:'ρ kg/m³',data:[],borderColor:'#a855f7',fill:false,tension:.3,pointRadius:0,borderWidth:2,yAxisID:'y2'},
     ]},
     options:{animation:false,responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:true,labels:{color:'#94a3b8',font:{size:8},boxWidth:8}}},
-      scales:{
-        x:{ticks:{color:'#475569',font:{size:8},maxTicksLimit:6},grid:{color:'#1e2d45'}},
-        y:{ticks:{color:'#f97316',font:{size:8}},grid:{color:'#1e2d45'},position:'left'},
-        y2:{ticks:{color:'#a855f7',font:{size:8}},grid:{display:false},position:'right'},
-      }}});
+      plugins:{legend:{display:true,labels:{color:tk,font:{size:8},boxWidth:8}}},
+      scales:{x:{ticks:{color:tk,font:{size:8},maxTicksLimit:6},grid:{color:g}},
+              y:{ticks:{color:'#f97316',font:{size:8}},grid:{color:g},position:'left'},
+              y2:{ticks:{color:'#a855f7',font:{size:8}},grid:{display:false},position:'right'}}}});
 }
 
+const CDEFS=[
+  {id:'ch-p',key:'pressure_bar', color:'#3b82f6',unit:'bar',  rng:'rng-p'},
+  {id:'ch-h',key:'head_m',       color:'#14b8a6',unit:'m',    rng:'rng-h'},
+  {id:'ch-q',key:'flow_ls',      color:'#22c55e',unit:'L/s',  rng:'rng-q'},
+  {id:'ch-t',key:'temperature_c',color:'#f97316',unit:'°C',   rng:'rng-t'},
+  {id:'ch-d',key:'density_kgm3', color:'#a855f7',unit:'kg/m³',rng:'rng-d'},
+];
 function updCharts(d){
   const x=d.x_km.map(v=>v.toFixed(1));
   CDEFS.forEach(def=>{
-    const c=C[def.id]; if(!c)return;
-    c.data.labels=x; c.data.datasets[0].data=d[def.key]; c.update('none');
+    const c=C[def.id];if(!c)return;
+    c.data.labels=x;c.data.datasets[0].data=d[def.key];c.update('none');
     const a=d[def.key],mn=Math.min(...a),mx=Math.max(...a);
     $(def.rng).textContent=`Min ${mn.toFixed(2)} | Max ${mx.toFixed(2)} | Δ${(mx-mn).toFixed(2)} ${def.unit}`;
   });
-  const ca=C['ch-all']; if(ca){
+  const ca=C['ch-all'];if(ca){
     ca.data.labels=x;
     ['pressure_bar','head_m','flow_ls','temperature_c','density_kgm3'].forEach((k,i)=>{
       const a=d[k],mn=Math.min(...a),mx=Math.max(...a),r=mx-mn||1;
       ca.data.datasets[i].data=a.map(v=>(v-mn)/r);
-    }); ca.update('none');
+    });ca.update('none');
   }
   ['pg-p','pg-q'].forEach((id,i)=>{
-    const c=C[id]; if(!c)return;
-    c.data.labels=x; c.data.datasets[0].data=i===0?d.pressure_bar:d.flow_ls; c.update('none');
+    const c=C[id];if(!c)return;
+    c.data.labels=x;c.data.datasets[0].data=i===0?d.pressure_bar:d.flow_ls;c.update('none');
   });
-  const ctd=C['pg-td']; if(ctd){
-    ctd.data.labels=x;
-    ctd.data.datasets[0].data=d.temperature_c;
-    ctd.data.datasets[1].data=d.density_kgm3;
-    ctd.update('none');
+  const ctd=C['pg-td'];if(ctd){
+    ctd.data.labels=x;ctd.data.datasets[0].data=d.temperature_c;
+    ctd.data.datasets[1].data=d.density_kgm3;ctd.update('none');
   }
 }
+// Axis controls
+function toggleAxis(id){const p=$(id);if(p)p.classList.toggle('open');}
+function setAxis(cid,minId,maxId){
+  const c=C[cid];if(!c)return;
+  const mn=parseFloat($(minId).value),mx=parseFloat($(maxId).value);
+  if(!isNaN(mn))c.options.scales.y.min=mn; else delete c.options.scales.y.min;
+  if(!isNaN(mx))c.options.scales.y.max=mx; else delete c.options.scales.y.max;
+  c.update('none');
+}
+function resetAxis(cid,minId,maxId){
+  const c=C[cid];if(!c)return;
+  delete c.options.scales.y.min;delete c.options.scales.y.max;
+  if(minId)$(minId).value='';if(maxId)$(maxId).value='';
+  c.update('none');
+}
 
-// ── Digital Twin ──────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// DIGITAL TWIN — PERSISTENT SVG (no flicker)
+// ══════════════════════════════════════════════════════════════
 const VIEWS={
   pressure:   {key:'pressure_bar', unit:'bar',   hi:'#1d4ed8',lo:'#dc2626'},
   temperature:{key:'temperature_c',unit:'°C',    hi:'#dc2626',lo:'#1d4ed8'},
   density:    {key:'density_kgm3', unit:'kg/m³', hi:'#7c3aed',lo:'#0e7490'},
   flow:       {key:'flow_ls',      unit:'L/s',   hi:'#059669',lo:'#b45309'},
 };
-
 function setView(v,btn){
   twinView=v;
   document.querySelectorAll('.twin-btns button').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  if(simData)drawTwin(simData);
+  _tw.view=''; // force rebuild
+  if(simData)renderTwin(simData);
+}
+function h2r(hex){return{r:parseInt(hex.slice(1,3),16),g:parseInt(hex.slice(3,5),16),b:parseInt(hex.slice(5,7),16)};}
+function lerp(a,b,t){return Math.round(a+(b-a)*t);}
+function lerpColor(hiHex,loHex,t){
+  const h=h2r(hiHex),l=h2r(loHex);
+  return`rgb(${lerp(l.r,h.r,t)},${lerp(l.g,h.g,t)},${lerp(l.b,h.b,t)})`;
 }
 
-function h2r(hex){return{r:parseInt(hex.slice(1,3),16),g:parseInt(hex.slice(3,5),16),b:parseInt(hex.slice(5,7),16)};}
-
-function drawTwin(d){
+function renderTwin(d){
   const svg=$('twin-svg');
-  const W=svg.clientWidth||900, H=230;
-  const pY=90,pH=52,pX0=105,pX1=W-105,pW=pX1-pX0;
-  const vc=VIEWS[twinView];
-  const arr=d[vc.key]||d.pressure_bar, n=arr.length;
-  const minV=Math.min(...arr),maxV=Math.max(...arr);
-  const L=d.x_km[d.x_km.length-1];
+  const W=svg.clientWidth||900;
+  const n=d.pressure_bar.length;
+  const needRebuild=!_tw.built||n!==_tw.n||Math.abs(W-_tw.w)>20||leakNode!==_tw.leak||twinView!==_tw.view;
+  if(needRebuild){
+    buildTwin(d,svg,W,n);
+    Object.assign(_tw,{built:true,n,w:W,leak:leakNode,view:twinView});
+  } else {
+    updateTwin(d,n,svg);
+  }
+}
 
+function buildTwin(d,svg,W,n){
+  const H=220,pY=88,pH=50,pX0=108,pX1=W-108,pW=pX1-pX0;
+  const vc=VIEWS[twinView];
+  const arr=d[vc.key]||d.pressure_bar;
+  const minV=Math.min(...arr),maxV=Math.max(...arr);
+
+  // Gradient stops
   const stops=arr.map((v,i)=>{
     const t=maxV>minV?(v-minV)/(maxV-minV):.5;
-    const c1=h2r(vc.hi),c2=h2r(vc.lo);
-    return `<stop offset="${(i/(n-1)*100).toFixed(1)}%" stop-color="rgb(${Math.round(c1.r*t+c2.r*(1-t))},${Math.round(c1.g*t+c2.g*(1-t))},${Math.round(c1.b*t+c2.b*(1-t))})"/>`;
+    return`<stop id="gs${i}" offset="${(i/(n-1)*100).toFixed(1)}%" stop-color="${lerpColor(vc.hi,vc.lo,t)}"/>`;
   }).join('');
 
+  // Sensor positions
   const step=Math.max(1,Math.floor(n/5));
   const sensors=[];
-  for(let i=0;i<n;i+=step)sensors.push({x:pX0+(i/(n-1))*pW,i,
-    p:d.pressure_bar[i]?.toFixed(1),q:d.flow_ls[i]?.toFixed(0),
-    t:d.temperature_c[i]?.toFixed(1),rho:d.density_kgm3[i]?.toFixed(0),km:d.x_km[i]?.toFixed(1)});
+  for(let i=0;i<n;i+=step)sensors.push({x:pX0+(i/(n-1))*pW,i});
 
-  const leakX=leakNode!=null?pX0+(leakNode/(n-1))*pW:null;
+  // Flow speed
   const avgQ=d.flow_ls[Math.floor(n/2)]||150;
   const dur=Math.max(0.5,3-avgQ/100).toFixed(1);
   const dir=avgQ>=0?'fR':'fL';
+
+  // Leak
+  const lx=leakNode!=null?pX0+(leakNode/(n-1))*pW:null;
 
   svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
   svg.innerHTML=`
 <defs>
   <linearGradient id="pg" x1="0" y1="0" x2="1" y2="0">${stops}</linearGradient>
   <linearGradient id="sh" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0%" stop-color="rgba(255,255,255,.13)"/>
-    <stop offset="100%" stop-color="rgba(0,0,0,.2)"/>
+    <stop offset="0%" stop-color="rgba(255,255,255,.12)"/>
+    <stop offset="100%" stop-color="rgba(0,0,0,.18)"/>
+  </linearGradient>
+  <linearGradient id="sg" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%" stop-color="${vc.lo}"/>
+    <stop offset="100%" stop-color="${vc.hi}"/>
   </linearGradient>
   <clipPath id="pc"><rect x="${pX0}" y="${pY}" width="${pW}" height="${pH}" rx="8"/></clipPath>
-  <style>.fa{animation:${dir} ${dur}s linear infinite} @keyframes ${dir==='fR'?'fR':'fL'}{${dir==='fR'?'from{stroke-dashoffset:50}to{stroke-dashoffset:0}':'from{stroke-dashoffset:0}to{stroke-dashoffset:50}'}}</style>
+  <style>
+    .fa{animation:${dir} ${dur}s linear infinite;stroke-dasharray:26 17}
+    @keyframes fR{from{stroke-dashoffset:50}to{stroke-dashoffset:0}}
+    @keyframes fL{from{stroke-dashoffset:0}to{stroke-dashoffset:50}}
+    @keyframes lp{0%,100%{opacity:1}50%{opacity:.3}}
+  </style>
 </defs>
-<text x="10" y="16" fill="#1e3a5f" font-size="10" font-family="monospace" font-weight="bold">PIPELINE DIGITAL TWIN · ${L} km · ${vc.key.replace('_',' ').toUpperCase()} VIEW</text>
-<rect x="${pX0-5}" y="${pY-7}" width="${pW+10}" height="${pH+14}" rx="12" fill="#0d1626" stroke="#1e3a5f" stroke-width="1.5"/>
+<text x="10" y="16" fill="#1e3a5f" font-size="10" font-family="monospace" font-weight="bold">PIPELINE DIGITAL TWIN · ${(d.x_km[n-1]||0).toFixed(1)} km · ${vc.key.replace(/_/g,' ').toUpperCase()}</text>
+<rect x="${pX0-5}" y="${pY-7}" width="${pW+10}" height="${pH+14}" rx="12" fill="var(--card2)" stroke="#1e3a5f" stroke-width="1.5"/>
 <rect x="${pX0}" y="${pY}" width="${pW}" height="${pH}" rx="8" fill="url(#pg)"/>
-<rect x="${pX0}" y="${pY+1}" width="${pW}" height="${pH*.3}" rx="7" fill="url(#sh)"/>
-<g clip-path="url(#pc)"><line x1="${pX0}" y1="${pY+pH/2}" x2="${pX1+60}" y2="${pY+pH/2}"
-  stroke="rgba(255,255,255,.17)" stroke-width="${pH}" stroke-dasharray="26 17" class="fa"/></g>
+<rect x="${pX0}" y="${pY+1}" width="${pW}" height="${pH*.28}" rx="7" fill="url(#sh)"/>
+<g clip-path="url(#pc)">
+  <line x1="${pX0}" y1="${pY+pH/2}" x2="${pX1+60}" y2="${pY+pH/2}"
+    stroke="rgba(255,255,255,.16)" stroke-width="${pH}" class="fa" id="flow-line"/>
+</g>
 <rect x="${pX0}" y="${pY}" width="${pW}" height="${pH}" rx="8" fill="none" stroke="#334155" stroke-width="1"/>
-<rect x="${pX0-88}" y="${pY+8}" width="74" height="${pH-16}" rx="5" fill="#0d1626" stroke="#1d4ed8" stroke-width="1.5"/>
+<rect x="${pX0-88}" y="${pY+8}" width="74" height="${pH-16}" rx="5" fill="var(--card2)" stroke="#1d4ed8" stroke-width="1.5"/>
 <text x="${pX0-51}" y="${pY+pH/2-5}" fill="#3b82f6" font-size="13" text-anchor="middle">⛽</text>
 <text x="${pX0-51}" y="${pY+pH/2+8}" fill="#3b82f6" font-size="8" text-anchor="middle" font-family="monospace">PUMP</text>
 <line x1="${pX0-14}" y1="${pY+pH/2}" x2="${pX0}" y2="${pY+pH/2}" stroke="#1d4ed8" stroke-width="2"/>
-<rect x="${pX1+14}" y="${pY+8}" width="74" height="${pH-16}" rx="5" fill="#0d1626" stroke="#059669" stroke-width="1.5"/>
+<rect x="${pX1+14}" y="${pY+8}" width="74" height="${pH-16}" rx="5" fill="var(--card2)" stroke="#059669" stroke-width="1.5"/>
 <text x="${pX1+51}" y="${pY+pH/2-5}" fill="#22c55e" font-size="13" text-anchor="middle">🔧</text>
 <text x="${pX1+51}" y="${pY+pH/2+8}" fill="#22c55e" font-size="8" text-anchor="middle" font-family="monospace">VALVE</text>
 <line x1="${pX1}" y1="${pY+pH/2}" x2="${pX1+14}" y2="${pY+pH/2}" stroke="#059669" stroke-width="2"/>
 ${sensors.map((s,k)=>`
   <line x1="${s.x}" y1="${pY-7}" x2="${s.x}" y2="${pY+pH+7}" stroke="#334155" stroke-width="1" stroke-dasharray="2 2"/>
-  <circle cx="${s.x}" cy="${pY-14}" r="5" fill="#1e2d45" stroke="#3b82f6" stroke-width="1.5"/>
+  <circle cx="${s.x}" cy="${pY-14}" r="5" fill="var(--card2)" stroke="#3b82f6" stroke-width="1.5"/>
   <text x="${s.x}" y="${pY-11}" fill="#3b82f6" font-size="7" text-anchor="middle" font-weight="bold">S${k+1}</text>
-  <text x="${s.x}" y="${pY+pH+18}" fill="#64748b" font-size="8" text-anchor="middle" font-family="monospace">${s.km}km</text>
-  <text x="${s.x}" y="${pY+pH+29}" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="monospace" font-weight="600">${vc.key==='pressure_bar'?s.p+'b':vc.key==='temperature_c'?s.t+'°':vc.key==='density_kgm3'?s.rho+'ρ':s.q+'Q'}</text>
+  <text id="sv-km-${k}" x="${s.x}" y="${pY+pH+18}" fill="#64748b" font-size="8" text-anchor="middle" font-family="monospace">${d.x_km[s.i]?.toFixed(1)}km</text>
+  <text id="sv-${k}" x="${s.x}" y="${pY+pH+30}" fill="#94a3b8" font-size="8.5" text-anchor="middle" font-family="monospace" font-weight="600">—</text>
 `).join('')}
-<text x="${pX0-51}" y="${pY-22}" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="monospace">${d.pressure_bar[0]?.toFixed(1)}b | ${d.flow_ls[0]?.toFixed(0)}L/s</text>
-<text x="${pX0-51}" y="${pY-12}" fill="#64748b" font-size="8" text-anchor="middle" font-family="monospace">${d.temperature_c[0]?.toFixed(1)}°C | ${d.density_kgm3[0]?.toFixed(0)}kg/m³</text>
-<text x="${pX1+51}" y="${pY-22}" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="monospace">${d.pressure_bar[n-1]?.toFixed(1)}b | ${d.flow_ls[n-1]?.toFixed(0)}L/s</text>
-<text x="${pX1+51}" y="${pY-12}" fill="#64748b" font-size="8" text-anchor="middle" font-family="monospace">${d.temperature_c[n-1]?.toFixed(1)}°C | ${d.density_kgm3[n-1]?.toFixed(0)}kg/m³</text>
-${leakX?`
-  <line x1="${leakX}" y1="${pY-5}" x2="${leakX}" y2="${pY+pH+5}" stroke="#ef4444" stroke-width="2"/>
-  <circle cx="${leakX}" cy="${pY-18}" r="8" fill="#7f1d1d" stroke="#ef4444" stroke-width="1.5" style="animation:lp 1s ease-in-out infinite"/>
-  <text x="${leakX}" y="${pY-14}" fill="#ef4444" font-size="9" text-anchor="middle" font-weight="bold">!</text>
-  <text x="${leakX}" y="${pY+pH+42}" fill="#ef4444" font-size="9" text-anchor="middle" font-family="monospace">LEAK</text>
-  ${[0,45,90,135,180,225].map((a,k)=>{const r=12+k%2*4;const ax=leakX+Math.cos((a-90)*Math.PI/180)*r;const ay=pY+pH/2+Math.sin((a-90)*Math.PI/180)*r;return`<circle cx="${ax.toFixed(0)}" cy="${ay.toFixed(0)}" r="2" fill="#ef4444" opacity=".7" style="animation:lp ${(.5+k*.15).toFixed(2)}s ease-in-out infinite"/>`;}).join('')}
+<text id="t-in-1" x="${pX0-51}" y="${pY-22}" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="monospace">—</text>
+<text id="t-in-2" x="${pX0-51}" y="${pY-12}" fill="#64748b" font-size="8" text-anchor="middle" font-family="monospace">—</text>
+<text id="t-out-1" x="${pX1+51}" y="${pY-22}" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="monospace">—</text>
+<text id="t-out-2" x="${pX1+51}" y="${pY-12}" fill="#64748b" font-size="8" text-anchor="middle" font-family="monospace">—</text>
+${lx!=null?`
+  <line x1="${lx}" y1="${pY-5}" x2="${lx}" y2="${pY+pH+5}" stroke="#ef4444" stroke-width="2"/>
+  <circle cx="${lx}" cy="${pY-18}" r="8" fill="#7f1d1d" stroke="#ef4444" stroke-width="1.5" style="animation:lp 1s ease-in-out infinite"/>
+  <text x="${lx}" y="${pY-14}" fill="#ef4444" font-size="9" text-anchor="middle" font-weight="bold">!</text>
+  <text x="${lx}" y="${pY+pH+44}" fill="#ef4444" font-size="9" text-anchor="middle" font-family="monospace">LEAK</text>
 `:''}
-<defs><linearGradient id="sg" x1="0" y1="0" x2="1" y2="0">
-  <stop offset="0%" stop-color="${vc.lo}"/><stop offset="100%" stop-color="${vc.hi}"/></linearGradient></defs>
 <rect x="${pX0}" y="${H-18}" width="110" height="7" rx="3" fill="url(#sg)" stroke="#334155" stroke-width=".5"/>
-<text x="${pX0}" y="${H-22}" fill="#475569" font-size="8" font-family="monospace">${minV.toFixed(1)}</text>
-<text x="${pX0+110}" y="${H-22}" fill="#475569" font-size="8" font-family="monospace" text-anchor="end">${maxV.toFixed(1)} ${vc.unit}</text>`;
+<text id="t-sc-min" x="${pX0}" y="${H-22}" fill="#475569" font-size="8" font-family="monospace">${minV.toFixed(1)}</text>
+<text id="t-sc-max" x="${pX0+110}" y="${H-22}" fill="#475569" font-size="8" font-family="monospace" text-anchor="end">${maxV.toFixed(1)} ${vc.unit}</text>`;
+
+  // Immediately fill values
+  updateTwin(d,n,svg);
+}
+
+function updateTwin(d,n,svg){
+  const vc=VIEWS[twinView];
+  const arr=d[vc.key]||d.pressure_bar;
+  const minV=Math.min(...arr),maxV=Math.max(...arr);
+
+  // Update gradient stops in-place (no DOM rebuild)
+  arr.forEach((v,i)=>{
+    const stop=svg.querySelector(`#gs${i}`);
+    if(!stop)return;
+    const t=maxV>minV?(v-minV)/(maxV-minV):.5;
+    stop.setAttribute('stop-color',lerpColor(vc.hi,vc.lo,t));
+  });
+
+  // Update flow animation speed
+  const avgQ=d.flow_ls[Math.floor(n/2)]||150;
+  const dur=Math.max(0.5,3-avgQ/100).toFixed(1);
+  const fl=svg.querySelector('#flow-line');
+  if(fl)fl.style.animationDuration=dur+'s';
+
+  // Update sensor values
+  const step=Math.max(1,Math.floor(n/5));
+  let k=0;
+  for(let i=0;i<n;i+=step){
+    const el=svg.querySelector(`#sv-${k}`);
+    if(el){
+      el.textContent=vc.key==='pressure_bar'?`${d.pressure_bar[i]?.toFixed(1)}b`
+        :vc.key==='temperature_c'?`${d.temperature_c[i]?.toFixed(1)}°`
+        :vc.key==='density_kgm3'?`${d.density_kgm3[i]?.toFixed(0)}ρ`
+        :`${d.flow_ls[i]?.toFixed(0)}Q`;
+    }
+    k++;
+  }
+
+  // Inlet/outlet
+  const setText=(id,txt)=>{const e=svg.querySelector('#'+id);if(e)e.textContent=txt;};
+  setText('t-in-1', `${d.pressure_bar[0]?.toFixed(1)}b | ${d.flow_ls[0]?.toFixed(0)}L/s`);
+  setText('t-in-2', `${d.temperature_c[0]?.toFixed(1)}°C | ${d.density_kgm3[0]?.toFixed(0)}kg/m³`);
+  setText('t-out-1',`${d.pressure_bar[n-1]?.toFixed(1)}b | ${d.flow_ls[n-1]?.toFixed(0)}L/s`);
+  setText('t-out-2',`${d.temperature_c[n-1]?.toFixed(1)}°C | ${d.density_kgm3[n-1]?.toFixed(0)}kg/m³`);
+  setText('t-sc-min',minV.toFixed(1));
+  setText('t-sc-max',`${maxV.toFixed(1)} ${vc.unit}`);
 }
 
 function renderBar(d){
-  const arr=d.pressure_bar, mx=Math.max(...arr);
-  $('bar-rows').innerHTML=arr.map((p,i)=>{
-    const pct=Math.max(0,Math.min(100,p/mx*100));
+  if(!d)return;
+  const param=$('bar-param')?.value||'pressure_bar';
+  const arr=d[param]; if(!arr)return;
+  const mx=Math.max(...arr.map(Math.abs))||1;
+  const labels={pressure_bar:'bar',head_m:'m',flow_ls:'L/s',temperature_c:'°C',density_kgm3:'kg/m³'};
+  const unit=labels[param]||'';
+  $('bar-rows').innerHTML=arr.map((v,i)=>{
+    const pct=Math.max(0,Math.min(100,Math.abs(v)/mx*100));
     const isL=leakNode!=null&&i===leakNode;
-    const col=isL?'var(--red)':p<mx*.4?'var(--orange)':'var(--accent)';
-    return`<div class="bar-row"><span class="bar-lbl">N${String(i).padStart(2,'0')}</span>
+    const col=isL?'var(--red)':v<mx*.4?'var(--orange)':'var(--accent)';
+    return`<div class="bar-row">
+      <span class="bar-lbl">N${String(i).padStart(2,'0')}</span>
       <div class="bar-wrap"><div class="bar-fill" style="width:${pct}%;background:${col}"></div></div>
-      <span class="bar-val">${p.toFixed(2)}</span></div>`;
+      <span class="bar-val">${v.toFixed(2)} ${unit}</span></div>`;
   }).join('');
 }
 
-// ── Simulation ────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// SIMULATION
+// ══════════════════════════════════════════════════════════════
 async function connect(){
   API=$('api-url').value.trim().replace(/\/$/,'');
   log('Checking health…');
@@ -631,7 +907,7 @@ async function connect(){
     log('Configuring pipeline…');
     const res=await api('POST','/pipeline/configure',buildCfg());
     setWave(res);
-    log('Initializing…');
+    log('Initializing steady state…');
     await doInit();
     setConn(true);
     $('overlay').classList.add('hidden');
@@ -639,44 +915,39 @@ async function connect(){
     startEqTimer();
   }catch(e){log('❌ '+e.message);}
 }
-
 function setConn(ok){
   $('conn-dot').className='dot '+(ok?'dot-g':'dot-r');
   $('conn-lbl').textContent=ok?'Online':'Offline';
   $('conn-lbl').style.color=ok?'var(--green)':'var(--red)';
   ['btn-start','btn-leak','btn-clear'].forEach(id=>$(id).disabled=!ok);
 }
-
 function setWave(res){
   $('s-wave').textContent=res.wave_speed_m_s;
   $('c-wave').textContent=res.wave_speed_m_s?.toFixed(1)||'—';
   $('c-dt').textContent=res.dt_s?.toFixed(4)||'—';
   $('c-dx').textContent=res.dx_m?.toFixed(0)||'—';
 }
-
 function startSim(){
-  $('btn-start').disabled=true; $('btn-stop').disabled=false;
+  $('btn-start').disabled=true;$('btn-stop').disabled=false;
   const ms=parseInt($('c-int')?.value)||1000;
-  timer=setInterval(tick,ms); tick();
+  pollTimer=setInterval(tick,ms);tick();
 }
-function stopSim(){clearInterval(timer);$('btn-start').disabled=false;$('btn-stop').disabled=true;}
+function stopSim(){clearInterval(pollTimer);$('btn-start').disabled=false;$('btn-stop').disabled=true;}
 
 async function tick(){
   const spd=parseInt($('sim-spd').value)||5;
   try{
     const d=await api('POST','/simulation/multi_step',{
-      n_steps:spd,
-      inlet_pressure_pa:BC.pIn*1e5, outlet_pressure_pa:BC.pOut*1e5,
-      simulated_leak_node:leakNode, simulated_leak_flow_m3s:leakFlow,
+      n_steps:spd,inlet_pressure_pa:BC.pIn*1e5,outlet_pressure_pa:BC.pOut*1e5,
+      simulated_leak_node:leakNode,simulated_leak_flow_m3s:leakFlow,
     });
     simData=d;
     if(live){
-      hist.push(d); if(hist.length>120)hist.shift();
-      const sl=$('hist-sl'); sl.max=hist.length-1; sl.value=sl.max;
+      hist.push(d);if(hist.length>120)hist.shift();
+      const sl=$('hist-sl');sl.max=hist.length-1;sl.value=sl.max;
       $('hist-lbl').textContent=`t=${d.time?.toFixed(0)}s`;
     }
     updDisplay(d);
-    // Leak detection
     const pArr=d.pressures_pa||d.pressure_bar.map(b=>b*1e5);
     const pMeas=pArr.map((p,i)=>{
       let pm=p+randN(0,4000);
@@ -702,29 +973,27 @@ function updDisplay(d){
   $('s-tin').textContent=d.temperature_c?.[0]?.toFixed(1)||'—';
   $('s-rho').textContent=d.density_kgm3?.[0]?.toFixed(1)||'—';
   const imb=BC.qIn-BC.qOut;
-  const el=$('s-imb'); el.textContent=imb.toFixed(2);
+  const el=$('s-imb');el.textContent=imb.toFixed(2);
   el.style.color=Math.abs(imb)>.64?'var(--red)':'var(--green)';
-  drawTwin(d); renderBar(d); updCharts(d);
+  renderTwin(d);renderBar(d);updCharts(d);
 }
 
-// ── History scrubber ──────────────────────────────────────────────────────────
-function scrub(idx){
-  live=false;
-  const d=hist[parseInt(idx)];
-  if(d){$('hist-lbl').textContent=`t=${d.time?.toFixed(0)}s`;updDisplay(d);}
-}
-function goLive(){live=true;if(simData)updDisplay(simData);}
+// History
+function scrub(idx){live=false;const d=hist[parseInt(idx)];if(d){$('hist-lbl').textContent=`t=${d.time?.toFixed(0)}s`;updDisplay(d);}}
+function goLive(){live=true;const sl=$('hist-sl');sl.value=sl.max;if(simData)updDisplay(simData);}
 
-// ── Leak detection render ─────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// LEAK DETECTION
+// ══════════════════════════════════════════════════════════════
 function renderLD(a){
   const sev=a.highest_severity;
   const cols={critical:'var(--red)',alarm:'var(--orange)',warning:'var(--yellow)',none:'var(--green)'};
-  const bgs={critical:'#1c0505',alarm:'#1c0a00',warning:'#1c1500',none:'#052e16'};
-  const bcs={critical:'#991b1b',alarm:'#9a3412',warning:'#854d0e',none:'#166534'};
+  const bgs ={critical:'#1c0505',alarm:'#1c0a00',warning:'#1c1500',none:'#052e16'};
+  const bcs ={critical:'#991b1b',alarm:'#9a3412',warning:'#854d0e',none:'#166534'};
   const col=cols[sev]||cols.none;
   const box=$('ld-box');
   box.style.background=bgs[sev]||bgs.none;
-  box.style.border='1px solid '+(bcs[sev]||bcs.none);
+  box.style.borderColor=bcs[sev]||bcs.none;
   $('ld-st').style.color=col;
   $('ld-st').textContent=a.any_alarm?sev.toUpperCase()+' ⚠':'NOMINAL';
   $('ld-det').textContent=a.any_alarm?`Conf ${(a.fused_confidence*100).toFixed(0)}% · ${a.alarms.length} method(s)`:'All clear';
@@ -739,43 +1008,47 @@ function renderLD(a){
   }else $('loc-row').style.display='none';
   if(a.any_alarm)a.alarms.forEach(addAlarm);
 }
-
 function setBadge(id,hit,lbl){
   const e=$(id);
-  if(hit){e.style.background='#431407';e.style.color='var(--red)';e.style.border='1px solid #991b1b';e.textContent=lbl+' ⚠';}
-  else{e.style.background='#052e16';e.style.color='var(--green)';e.style.border='1px solid #166534';e.textContent=lbl+' ✓';}
+  if(hit){e.style.background='#431407';e.style.color='var(--red)';e.style.borderColor='#991b1b';e.textContent=lbl+' ⚠';}
+  else{e.style.background='#052e16';e.style.color='var(--green)';e.style.borderColor='#166534';e.textContent=lbl+' ✓';}
 }
-
 function addAlarm(alarm){
   const log=$('alarm-log');
   if(log.firstChild?.style?.color==='var(--muted)')log.innerHTML='';
   const col={critical:'var(--red)',alarm:'var(--orange)',warning:'var(--yellow)'}[alarm.severity]||'var(--muted)';
-  const d=document.createElement('div'); d.className='alarm-row';
+  const d=document.createElement('div');d.className='alarm-row';
   d.innerHTML=`<span class="badge" style="background:${col}22;color:${col};border:1px solid ${col};flex-shrink:0">${alarm.severity}</span>
     <div><div style="color:var(--muted);font-size:9px">t=${alarm.timestamp?.toFixed(0)}s · ${alarm.method}</div>
     <div>${alarm.message}</div></div>`;
   log.prepend(d);
 }
 
-// ── Leak simulation ───────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// LEAK INJECTION
+// ══════════════════════════════════════════════════════════════
 function injectLeak(){
   if(!simData)return;
   leakNode=Math.floor(simData.pressure_bar.length*.6);
   leakFlow=BC.qIn/1000*.02;
   BC.qOut=BC.qIn*(1-.02);
-  const sl=$('sl-qout'); if(sl){sl.value=BC.qOut.toFixed(0);slUpdate('qout',BC.qOut.toFixed(0));}
-  $('btn-leak').disabled=true; $('btn-clear').disabled=false;
+  const sl=$('sl-qout');if(sl){sl.value=BC.qOut.toFixed(0);slUp('qout',BC.qOut.toFixed(0));}
+  $('btn-leak').disabled=true;$('btn-clear').disabled=false;
+  _tw.built=false; // force twin rebuild to show leak
   addAlarm({severity:'alarm',timestamp:simData?.time||0,method:'operator',
-    message:`⚗ 2% leak at node ${leakNode} (x≈${simData.x_km[leakNode]?.toFixed(1)} km)`});
+    message:`⚗ 2% simulated leak at node ${leakNode} (x≈${simData.x_km[leakNode]?.toFixed(1)} km)`});
 }
 function clearLeak(){
   leakNode=null;leakFlow=0;BC.qOut=BC.qIn;
-  const sl=$('sl-qout');if(sl){sl.value=BC.qIn.toFixed(0);slUpdate('qout',BC.qIn.toFixed(0));}
+  const sl=$('sl-qout');if(sl){sl.value=BC.qIn.toFixed(0);slUp('qout',BC.qIn.toFixed(0));}
   $('btn-leak').disabled=false;$('btn-clear').disabled=true;
+  _tw.built=false;
 }
 
-// ── Playground ────────────────────────────────────────────────────────────────
-function slUpdate(k,v){
+// ══════════════════════════════════════════════════════════════
+// PLAYGROUND
+// ══════════════════════════════════════════════════════════════
+function slUp(k,v){
   const n=parseFloat(v);
   const fmt={pin:`${n.toFixed(1)} bar`,pout:`${n.toFixed(1)} bar`,
     qin:`${n.toFixed(0)} L/s`,qout:`${n.toFixed(0)} L/s`,
@@ -788,7 +1061,6 @@ function slUpdate(k,v){
   BC.qIn=parseFloat($('sl-qin')?.value||150);
   BC.qOut=parseFloat($('sl-qout')?.value||150);
 }
-
 function preset(name){
   const P={
     normal:{pin:50,pout:30,qin:150,qout:150},
@@ -800,15 +1072,14 @@ function preset(name){
     cold_restart:{pin:20,pout:5,qin:50,qout:50,temp:20},
     maxflow:{pin:100,pout:5,qin:280,qout:280},
   }[name]||{};
-  ['pin','pout','qin','qout'].forEach(k=>{if(P[k]!==undefined){const sl=$(`sl-${k}`);if(sl){sl.value=P[k];slUpdate(k,P[k]);}}});
-  if(P.temp){const sl=$('sl-temp');if(sl){sl.value=P.temp;slUpdate('temp',P.temp);}}
-  if(name==='leak1'){leakNode=Math.floor((simData?.pressure_bar?.length||20)*.4);leakFlow=.0015;}
-  else if(name==='leak3'){leakNode=Math.floor((simData?.pressure_bar?.length||20)*.7);leakFlow=.0045;}
-  else{leakNode=null;leakFlow=0;}
-  if(P.temp)reconfigSliders();
+  ['pin','pout','qin','qout'].forEach(k=>{if(P[k]!==undefined){const sl=$(`sl-${k}`);if(sl){sl.value=P[k];slUp(k,P[k]);}}});
+  if(P.temp){const sl=$('sl-temp');if(sl){sl.value=P.temp;slUp('temp',P.temp);}}
+  if(name==='leak1'){leakNode=Math.floor((simData?.pressure_bar?.length||20)*.4);leakFlow=.0015;_tw.built=false;}
+  else if(name==='leak3'){leakNode=Math.floor((simData?.pressure_bar?.length||20)*.7);leakFlow=.0045;_tw.built=false;}
+  else{leakNode=null;leakFlow=0;_tw.built=false;}
+  if(P.temp)reconfigSl();
 }
-
-async function reconfigSliders(){
+async function reconfigSl(){
   const pl=buildCfg();
   pl.density_kg_m3=parseFloat($('sl-rho')?.value||850);
   pl.viscosity_pa_s=parseFloat($('sl-vis')?.value||10)/1000;
@@ -821,7 +1092,9 @@ async function reconfigSliders(){
   catch(e){showMsg('Error: '+e.message,true);}
 }
 
-// ── Config ────────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════════════
 function buildCfg(){
   return{length_m:+($('c-len')?.value||50000),diameter_m:+($('c-dia')?.value||.3048),
     wall_thickness_m:+($('c-wt')?.value||.008),roughness_m:+($('c-rough')?.value||46e-6),
@@ -835,41 +1108,34 @@ function buildCfg(){
     nominal_flow_m3s:+($('c-qnom')?.value||.15),sigma_flow_m3s:+($('t-sigq')?.value||.0003),
     sigma_pressure_pa:+($('t-sigp')?.value||5000)};
 }
-
 async function applyConfig(){
   try{
     const res=await api('POST','/pipeline/configure',buildCfg());
-    setWave(res);
-    await applyThresholds();
+    setWave(res);_tw.built=false;
+    await applyThr();
     await api('POST','/config/runtime',{max_duration_s:+($('c-dur')?.value||3600),step_interval_ms:+($('c-int')?.value||1000)});
     await doInit();
-    $('prod-pill').style.display='inline';
-    $('prod-name').textContent=$('cfg-prod')?.value||'—';
+    $('prod-pill').style.display='inline';$('prod-name').textContent=$('cfg-prod')?.value||'—';
     showMsg('✓ Applied');
   }catch(e){showMsg('Error: '+e.message,true);}
 }
-
-async function applyThresholds(){
+async function applyThr(){
   await api('POST','/config/thresholds',{
     sigma_flow_m3s:+($('t-sigq')?.value||.0003),sigma_pressure_pa:+($('t-sigp')?.value||5000),
     k_warn:+($('t-kw')?.value||2),k_alarm:+($('t-ka')?.value||3),k_critical:+($('t-kc')?.value||5),
     vb_window_size:+($('t-vbw')?.value||10),pd_window_size:+($('t-pdw')?.value||5),min_leak_pct:+($('t-minl')?.value||.5)});
   showMsg('✓ Thresholds');
 }
-
 async function doInit(){
-  const p=+($('bc-pin')?.value||50), q=+($('bc-qin')?.value||150);
+  const p=+($('bc-pin')?.value||50),q=+($('bc-qin')?.value||150);
   await api('POST','/simulation/initialize',{inlet_pressure_pa:p*1e5,inlet_flow_m3s:q/1000});
-  BC.pIn=p;BC.qIn=q;
-  BC.pOut=+($('bc-pout')?.value||30);BC.qOut=q;
+  BC={pIn:p,pOut:+($('bc-pout')?.value||30),qIn:q,qOut:q};
   hist=[];
 }
-
 function popProds(){
-  const cat=$('cfg-cat')?.value; const sel=$('cfg-prod'); if(!sel)return;
-  sel.innerHTML=''; (prodLib[cat]||[]).forEach(name=>{const o=document.createElement('option');o.value=name;o.textContent=name;sel.appendChild(o);});
+  const cat=$('cfg-cat')?.value;const sel=$('cfg-prod');if(!sel)return;
+  sel.innerHTML='';(prodLib[cat]||[]).forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;sel.appendChild(o);});
 }
-
 async function loadProd(){
   try{const p=await api('POST','/products/select',{category:$('cfg-cat')?.value,name:$('cfg-prod')?.value});
     $('c-rho').value=p.density_kg_m3;$('c-vis').value=p.viscosity_pa_s;$('c-bulk').value=p.bulk_modulus_pa;
@@ -877,14 +1143,15 @@ async function loadProd(){
     $('c-mol').value=p.molar_mass;$('c-ftype').value=p.fluid_type;showMsg('Loaded: '+$('cfg-prod').value);}
   catch(e){showMsg('Error: '+e.message,true);}
 }
-
 function showMsg(msg,err=false){
   const el=$('cfg-msg');if(!el)return;
   el.textContent=msg;el.style.color=err?'var(--red)':'var(--green)';
   setTimeout(()=>el.textContent='',4000);
 }
 
-// ── Equation log ──────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// EQUATION LOG
+// ══════════════════════════════════════════════════════════════
 function startEqTimer(){fetchEq();eqTimer=setInterval(()=>{if($('tab-log').classList.contains('active'))fetchEq();},3000);}
 async function fetchEq(){
   try{const n=+$('eq-lim').value;const res=await api('GET',`/simulation/equations?last_n=${n}`);
@@ -909,16 +1176,16 @@ function exportCsv(){
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='rttm_equations.csv';a.click();
 }
 
-// ── Tabs ──────────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// TABS & HELPERS
+// ══════════════════════════════════════════════════════════════
 function showTab(name,btn){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
-  $('tab-'+name).classList.add('active'); btn.classList.add('active');
-  setTimeout(()=>Object.values(C).forEach(c=>c.resize&&c.resize()),50);
+  $('tab-'+name).classList.add('active');btn.classList.add('active');
+  setTimeout(()=>Object.values(C).forEach(c=>c.resize&&c.resize()),60);
   if(name==='log')fetchEq();
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 async function api(m,p,b){
   const o={method:m,headers:{'Content-Type':'application/json'}};if(b)o.body=JSON.stringify(b);
   const r=await fetch(API+p,o);
@@ -928,7 +1195,9 @@ async function api(m,p,b){
 function randN(mu,s){return mu+s*Math.sqrt(-2*Math.log(1-Math.random()))*Math.cos(2*Math.PI*Math.random());}
 function log(msg){$('log-msg').textContent=msg;}
 window.addEventListener('DOMContentLoaded',()=>{
-  ['pin','pout','qin','qout','rho','vis','bulk','temp','dia','rough','elev'].forEach(k=>{const sl=$('sl-'+k);if(sl)slUpdate(k,sl.value);});
+  ['pin','pout','qin','qout','rho','vis','bulk','temp','dia','rough','elev'].forEach(k=>{const sl=$('sl-'+k);if(sl)slUp(k,sl.value);});
+  // Handle window resize — rebuild twin
+  window.addEventListener('resize',()=>{_tw.built=false;if(simData)renderTwin(simData);});
 });
 </script>
 </body>
